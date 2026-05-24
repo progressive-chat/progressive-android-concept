@@ -1,84 +1,74 @@
 #pragma once
 
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QString>
+#include <optional>
 
-namespace JsonUtil {
+namespace progressive_chat {
+namespace util {
 
-inline QString optString(const QJsonObject &obj, const QString &key, const QString &defaultVal = {})
+inline std::optional<QJsonObject> parseJson(const QByteArray &data)
 {
-    if (obj.isEmpty())
-        return defaultVal;
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull())
-        return defaultVal;
-    return val.toString(defaultVal);
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject())
+        return std::nullopt;
+    return doc.object();
 }
 
-inline int optInt(const QJsonObject &obj, const QString &key, int defaultVal = 0)
+inline std::optional<QJsonDocument> parseJsonDocument(const QByteArray &data)
 {
-    if (obj.isEmpty())
-        return defaultVal;
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull())
-        return defaultVal;
-    bool ok = false;
-    int result = val.toVariant().toInt(&ok);
-    return ok ? result : defaultVal;
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+    if (error.error != QJsonParseError::NoError)
+        return std::nullopt;
+    return doc;
 }
 
-inline qint64 optLong(const QJsonObject &obj, const QString &key, qint64 defaultVal = 0)
+inline QJsonObject safeObject(const QJsonValue &val)
 {
-    if (obj.isEmpty())
-        return defaultVal;
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull())
-        return defaultVal;
-    bool ok = false;
-    qint64 result = val.toVariant().toLongLong(&ok);
-    return ok ? result : defaultVal;
+    return val.isObject() ? val.toObject() : QJsonObject();
 }
 
-inline bool optBool(const QJsonObject &obj, const QString &key, bool defaultVal = false)
+inline QJsonArray safeArray(const QJsonValue &val)
 {
-    if (obj.isEmpty())
-        return defaultVal;
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull())
-        return defaultVal;
-    return val.toBool(defaultVal);
+    return val.isArray() ? val.toArray() : QJsonArray();
 }
 
-inline QJsonObject optObject(const QJsonObject &obj, const QString &key)
+inline QString safeString(const QJsonValue &val, const QString &defaultVal = "")
 {
-    if (obj.isEmpty())
-        return {};
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull() || !val.isObject())
-        return {};
-    return val.toObject();
+    return val.isString() ? val.toString() : defaultVal;
 }
 
-inline QJsonArray optArray(const QJsonObject &obj, const QString &key)
+inline int safeInt(const QJsonValue &val, int defaultVal = 0)
 {
-    if (obj.isEmpty())
-        return {};
-    const auto val = obj.value(key);
-    if (val.isUndefined() || val.isNull() || !val.isArray())
-        return {};
-    return val.toArray();
+    return val.isDouble() ? val.toInt() : defaultVal;
 }
 
-QJsonDocument parse(const QString &json);
+inline qint64 safeInt64(const QJsonValue &val, qint64 defaultVal = 0)
+{
+    return val.isDouble() ? (qint64)val.toDouble() : defaultVal;
+}
 
-QJsonObject parseObject(const QString &json);
+inline bool safeBool(const QJsonValue &val, bool defaultVal = false)
+{
+    return val.isBool() ? val.toBool() : defaultVal;
+}
 
-QString stringify(const QJsonObject &obj);
+inline QJsonObject mergeObjects(const QJsonObject &base, const QJsonObject &overlay)
+{
+    QJsonObject result = base;
+    for (auto it = overlay.begin(); it != overlay.end(); ++it) {
+        result[it.key()] = it.value();
+    }
+    return result;
+}
 
-QString stringify(const QJsonArray &arr);
+QString canonicalJson(const QJsonObject &obj);
+QJsonObject redactEvent(const QJsonObject &event);
+QString eventHash(const QJsonObject &event);
 
-void merge(QJsonObject &target, const QJsonObject &source);
-
-} // namespace JsonUtil
+} // namespace util
+} // namespace progressive_chat

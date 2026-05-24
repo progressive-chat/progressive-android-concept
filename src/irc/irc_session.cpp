@@ -1,803 +1,343 @@
 #include "irc_session.hpp"
+#include "../protocol/protocol_room.hpp"
+#include "../protocol/protocol_message.hpp"
 
 #include <QTcpSocket>
 #include <QSslSocket>
-#include <QSslError>
-#include <QTimer>
+#include <QNetworkAccessManager>
 #include <QDateTime>
-#include <QRegularExpression>
+#include <QDebug>
+#include <QUuid>
 
-IrcSession::IrcSession(const IrcServerInfo &info, QObject *parent)
-    : IProtocolSession()
-    , serverInfo_(info)
-    , currentNick_(info.nick)
+namespace progressive_chat {
+
+IrcSession::IrcSession(QNetworkAccessManager *network, QObject *parent)
+    : ProtocolSession(parent)
+    , m_networkManager(network)
 {
+    m_protocolType = ProtocolType::IRC;
+    m_nickname = "progressive_" + QUuid::createUuid().toString().mid(1, 8);
 }
 
 IrcSession::~IrcSession()
 {
-    close();
+    m_pingTimer.stop();
+    if (m_socket) {
+        m_socket->disconnectFromHost();
+        if (m_socket->state() != QAbstractSocket::UnconnectedState)
+            m_socket->waitForDisconnected(3000);
+        delete m_socket;
+    }
 }
 
-// ─── IProtocolSession interface ───────────────────────────────────────────────
-
-void IrcSession::open()
+void IrcSession::connect()
 {
-    if (state_ == ConnectionState::CONNECTING || state_ == ConnectionState::CONNECTED) {
+    if (m_server.isEmpty()) {
+        emit connectionError("No server configured");
         return;
     }
 
-    setConnectionState(ConnectionState::CONNECTING);
-    registered_ = false;
+    if (m_useSsl) {
+        auto *sslSocket = new QSslSocket(this);
+        sslSocket->connectToHostEncrypted(m_server, m_port);
+        m_socket = sslSocket;
+    } else {
+        m_socket = new QTcpSocket(this);
+        m_socket->connectToHost(m_server, m_port);
+    }
 
-    if (serverInfo_.useTls) {
-        auto *ssl = new QSslSocket(this);
-        socket_ = ssl;
-        connect(ssl, &QSslSocket::encrypted, this, &IrcSession::onConnected);
-        connect(ssl, QOverload<const QList<QSslError>&>::of(&QSslSocket::sslErrors),
-                this, &IrcSession::onSslErrors);
-        ssl->connectToHostEncrypted(serverInfo_.host, serverInfo_.port);
-        if (!serverInfo_.host.isEmpty()) {
-            ssl->ignoreSslErrors();
+    QObject::connect(m_socket, &QTcpSocket::connected, this, [this]() {
+        if (!m_password.isEmpty())
+            sendRaw("PASS " + m_password);
+        sendRaw("NICK " + m_nickname);
+        sendRaw("USER " + m_nickname + " 0 * :" + m_realName);
+    });
+
+    QObject::connect(m_socket, &QTcpSocket::readyRead, this, [this]() {
+        m_readBuffer += QString::fromUtf8(m_socket->readAll());
+        while (m_readBuffer.contains("\r\n")) {
+            int pos = m_readBuffer.indexOf("\r\n");
+            QString line = m_readBuffer.left(pos);
+            m_readBuffer = m_readBuffer.mid(pos + 2);
+            processLine(line);
         }
-    } else {
-        auto *tcp = new QTcpSocket(this);
-        socket_ = tcp;
-        connect(tcp, &QTcpSocket::connected, this, &IrcSession::onConnected);
-        tcp->connectToHost(serverInfo_.host, serverInfo_.port);
-    }
+    });
 
-    connect(socket_, &QTcpSocket::disconnected, this, &IrcSession::onDisconnected);
-    connect(socket_, &QTcpSocket::readyRead, this, &IrcSession::onReadyRead);
-    connect(socket_, &QTcpSocket::errorOccurred, this, &IrcSession::onError);
+    QObject::connect(m_socket, &QTcpSocket::disconnected, this, [this]() {
+        setConnected(false);
+        m_registered = false;
+        emit disconnected("Connection closed");
+    });
+
+    QObject::connect(m_socket, &QAbstractSocket::errorOccurred, this, [this](QAbstractSocket::SocketError err) {
+        emit connectionError(m_socket->errorString());
+    });
 }
 
-void IrcSession::close()
+void IrcSession::disconnect()
 {
-    if (state_ == ConnectionState::CONNECTED || state_ == ConnectionState::REGISTERED) {
-        sendRaw(QStringLiteral("QUIT :%1").arg(serverInfo_.realName.isEmpty()
-                                                ? QStringLiteral("Progressive Android")
-                                                : serverInfo_.realName));
-        socket_->flush();
-        socket_->disconnectFromHost();
-    } else if (socket_ && socket_->state() != QAbstractSocket::UnconnectedState) {
-        socket_->disconnectFromHost();
-    }
-
-    delete pingTimer_;
-    pingTimer_ = nullptr;
-
-    setConnectionState(ConnectionState::DISCONNECTED);
-}
-
-void IrcSession::sendMessage(const QString &roomId, const QString &text, ProtocolContentType contentType)
-{
-    if (state_ != ConnectionState::REGISTERED) {
-        emit errorOccurred(QStringLiteral("Not connected to IRC server"));
-        return;
-    }
-
-    if (contentType == ProtocolContentType::ACTION) {
-        sendRaw(QStringLiteral("PRIVMSG %1 :\001ACTION %2\001").arg(roomId, text));
-    } else {
-        sendRaw(QStringLiteral("PRIVMSG %1 :%2").arg(roomId, text));
-    }
-
-    ProtocolMessage msg;
-    msg.senderId = currentNick_;
-    msg.senderName = currentNick_;
-    msg.text = text;
-    msg.roomId = roomId;
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = contentType;
-    msg.protocolType = ProtocolType::IRC;
-
-    addMessageToRoom(roomId, msg);
-    emit messageReceived(msg);
-}
-
-QVector<ProtocolRoom> IrcSession::getRooms()
-{
-    QVector<ProtocolRoom> result;
-    result.reserve(rooms_.size());
-    for (const auto &room : rooms_) {
-        result.append(room);
-    }
-    return result;
-}
-
-QVector<ProtocolMessage> IrcSession::getMessages(const QString &roomId, int limit)
-{
-    const auto it = messages_.find(roomId.toLower());
-    if (it == messages_.end()) {
-        return {};
-    }
-
-    const auto &list = it.value();
-    if (limit <= 0 || limit >= list.size()) {
-        return list;
-    }
-
-    return list.mid(list.size() - limit);
-}
-
-void IrcSession::markAsRead(const QString &roomId)
-{
-    auto *room = findRoom(roomId);
-    if (room) {
-        room->unreadCount = 0;
-        emit roomUpdated(*room);
+    m_pingTimer.stop();
+    if (m_socket) {
+        sendRaw("QUIT :Progressive Chat signing off");
+        m_socket->disconnectFromHost();
     }
 }
 
-void IrcSession::joinRoom(const QString &channel)
+void IrcSession::reconnect()
 {
-    if (state_ != ConnectionState::REGISTERED) {
-        emit errorOccurred(QStringLiteral("Not connected to IRC server"));
-        return;
-    }
+    disconnect();
+    QTimer::singleShot(5000, this, &IrcSession::connect);
+}
 
-    QString ch = channel;
-    if (!ch.startsWith(QLatin1Char('#')) && !ch.startsWith(QLatin1Char('&'))) {
-        ch.prepend(QLatin1Char('#'));
-    }
+void IrcSession::sendMessage(const QString &roomId, const QString &body, const QString &replyTo)
+{
+    Q_UNUSED(replyTo);
+    sendPrivmsg(roomId, body);
+}
 
-    sendRaw(QStringLiteral("JOIN %1").arg(ch));
+void IrcSession::sendTyping(const QString &roomId, bool typing)
+{
+    Q_UNUSED(roomId); Q_UNUSED(typing);
+    // IRC doesn't support typing indicators
+}
 
-    ProtocolRoom room;
-    room.id = ch.toLower();
-    room.name = ch;
-    room.protocolType = ProtocolType::IRC;
-    rooms_[ch.toLower()] = room;
+void IrcSession::markRead(const QString &roomId) { Q_UNUSED(roomId); }
+
+void IrcSession::joinRoom(const QString &roomId)
+{
+    sendJoin(roomId);
 }
 
 void IrcSession::leaveRoom(const QString &roomId)
 {
-    if (state_ != ConnectionState::REGISTERED) {
-        emit errorOccurred(QStringLiteral("Not connected to IRC server"));
-        return;
-    }
-
-    sendRaw(QStringLiteral("PART %1 :Leaving").arg(roomId));
-    rooms_.remove(roomId.toLower());
-    messages_.remove(roomId.toLower());
+    sendPart(roomId);
 }
-
-QVector<ProtocolRoom> IrcSession::searchRooms(const QString &query)
-{
-    QVector<ProtocolRoom> result;
-    for (const auto &room : rooms_) {
-        if (room.name.contains(query, Qt::CaseInsensitive) ||
-            room.topic.contains(query, Qt::CaseInsensitive)) {
-            result.append(room);
-        }
-    }
-    return result;
-}
-
-ProtocolType IrcSession::protocolType() const
-{
-    return ProtocolType::IRC;
-}
-
-ConnectionState IrcSession::connectionState() const
-{
-    return state_;
-}
-
-QString IrcSession::userId() const
-{
-    return currentNick_;
-}
-
-QString IrcSession::displayName() const
-{
-    return serverInfo_.realName.isEmpty() ? currentNick_ : serverInfo_.realName;
-}
-
-// ─── Slots ────────────────────────────────────────────────────────────────────
-
-void IrcSession::onConnected()
-{
-    setConnectionState(ConnectionState::CONNECTED);
-
-    if (!serverInfo_.password.isEmpty()) {
-        sendRaw(QStringLiteral("PASS %1").arg(serverInfo_.password));
-    }
-
-    QString user = serverInfo_.user;
-    if (user.isEmpty()) {
-        user = serverInfo_.nick;
-    }
-
-    QString realName = serverInfo_.realName;
-    if (realName.isEmpty()) {
-        realName = serverInfo_.nick;
-    }
-
-    sendRaw(QStringLiteral("NICK %1").arg(serverInfo_.nick));
-    sendRaw(QStringLiteral("USER %1 0 * :%2").arg(user, realName));
-}
-
-void IrcSession::onDisconnected()
-{
-    setConnectionState(ConnectionState::DISCONNECTED);
-    registered_ = false;
-    delete pingTimer_;
-    pingTimer_ = nullptr;
-}
-
-void IrcSession::onReadyRead()
-{
-    while (socket_->canReadLine()) {
-        QByteArray data = socket_->readLine();
-        QString line = QString::fromUtf8(data).trimmed();
-
-        if (line.isEmpty() && !readBuffer_.isEmpty()) {
-            line = readBuffer_.trimmed();
-            readBuffer_.clear();
-        } else if (!readBuffer_.isEmpty()) {
-            line = readBuffer_ + line;
-            readBuffer_.clear();
-        }
-
-        if (line.isEmpty()) {
-            continue;
-        }
-
-        parseLine(line);
-    }
-
-    if (socket_->bytesAvailable() > 0) {
-        readBuffer_ += QString::fromUtf8(socket_->readAll());
-    }
-}
-
-void IrcSession::onError()
-{
-    emit errorOccurred(socket_->errorString());
-    if (state_ == ConnectionState::CONNECTING) {
-        setConnectionState(ConnectionState::ERROR);
-    }
-}
-
-void IrcSession::onSslErrors(const QList<QSslError> &errors)
-{
-    for (const auto &err : errors) {
-        emit errorOccurred(QStringLiteral("SSL: %1").arg(err.errorString()));
-    }
-}
-
-// ─── IRC line parsing ─────────────────────────────────────────────────────────
-
-void IrcSession::parseLine(const QString &line)
-{
-    QString msg = line;
-
-    QString prefix;
-    if (msg.startsWith(QLatin1Char(':'))) {
-        int space = msg.indexOf(QLatin1Char(' '));
-        prefix = msg.mid(1, space - 1);
-        msg = msg.mid(space + 1);
-    }
-
-    QString command;
-    int cmdEnd = msg.indexOf(QLatin1Char(' '));
-    if (cmdEnd == -1) {
-        command = msg;
-        msg.clear();
-    } else {
-        command = msg.left(cmdEnd);
-        msg = msg.mid(cmdEnd + 1);
-    }
-
-    QStringList params;
-    while (!msg.isEmpty()) {
-        if (msg.startsWith(QLatin1Char(':'))) {
-            params.append(msg.mid(1));
-            break;
-        }
-        int space = msg.indexOf(QLatin1Char(' '));
-        if (space == -1) {
-            params.append(msg);
-            break;
-        }
-        params.append(msg.left(space));
-        msg = msg.mid(space + 1);
-    }
-
-    if (command == QLatin1String("PING")) {
-        handlePing(params);
-    } else if (command == QLatin1String("PRIVMSG")) {
-        handlePrivmsg(prefix, params);
-    } else if (command == QLatin1String("JOIN")) {
-        handleJoin(prefix, params);
-    } else if (command == QLatin1String("PART")) {
-        handlePart(prefix, params);
-    } else if (command == QLatin1String("QUIT")) {
-        handleQuit(prefix, params);
-    } else if (command == QLatin1String("NOTICE")) {
-        handleNotice(prefix, params);
-    } else if (command == QLatin1String("MODE")) {
-        handleMode(prefix, params);
-    } else if (command == QLatin1String("KICK")) {
-        handleKick(prefix, params);
-    } else if (command == QLatin1String("TOPIC")) {
-        handleTopic(prefix, params);
-    } else if (command == QLatin1String("NICK")) {
-        handleNick(prefix, params);
-    } else if (command == QLatin1String("ERROR")) {
-        QString errMsg = params.isEmpty() ? QStringLiteral("Unknown IRC error") : params.join(QStringLiteral(" "));
-        emit errorOccurred(errMsg);
-        close();
-    } else {
-        bool isNumeric = false;
-        int numeric = command.toInt(&isNumeric);
-        if (isNumeric) {
-            handleNumeric(numeric, prefix, params);
-        }
-    }
-}
-
-// ─── Message handlers ─────────────────────────────────────────────────────────
-
-void IrcSession::handlePrivmsg(const QString &prefix, const QStringList &params)
-{
-    if (params.size() < 2) return;
-
-    QString target = params[0];
-    QString text = params[1];
-
-    QString senderNick = extractNick(prefix);
-    QString senderUser = extractUser(prefix);
-    QString senderHost = extractHost(prefix);
-
-    ProtocolContentType contentType = ProtocolContentType::TEXT;
-
-    if (text.startsWith(QStringLiteral("\001")) && text.endsWith(QStringLiteral("\001"))) {
-        QString ctcp = text.mid(1, text.length() - 2);
-        if (ctcp.startsWith(QStringLiteral("ACTION "))) {
-            contentType = ProtocolContentType::ACTION;
-            text = ctcp.mid(7);
-        } else {
-            contentType = ProtocolContentType::SYSTEM;
-        }
-    }
-
-    QString roomId;
-    if (target.startsWith(QLatin1Char('#')) || target.startsWith(QLatin1Char('&'))) {
-        roomId = target.toLower();
-    } else {
-        roomId = senderNick.toLower();
-    }
-
-    ProtocolMessage msg;
-    msg.senderId = senderNick;
-    msg.senderName = senderNick;
-    msg.text = text;
-    msg.roomId = roomId;
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = contentType;
-    msg.protocolType = ProtocolType::IRC;
-
-    addMessageToRoom(roomId, msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleJoin(const QString &prefix, const QStringList &params)
-{
-    QString channel = params.isEmpty() ? QString() : params[0];
-    if (channel.isEmpty()) return;
-
-    QString nick = extractNick(prefix);
-
-    ProtocolMessage msg;
-    msg.senderId = nick;
-    msg.senderName = nick;
-    msg.text = QStringLiteral("%1 has joined").arg(nick);
-    msg.roomId = channel.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::JOIN;
-    msg.protocolType = ProtocolType::IRC;
-
-    if (nick.toLower() == currentNick_.toLower()) {
-        ProtocolRoom room;
-        room.id = channel.toLower();
-        room.name = channel;
-        room.protocolType = ProtocolType::IRC;
-        rooms_[channel.toLower()] = room;
-        sendRaw(QStringLiteral("MODE %1").arg(channel));
-    } else {
-        auto *room = findRoom(channel);
-        if (room) {
-            room->memberCount++;
-            emit roomUpdated(*room);
-        }
-    }
-
-    addMessageToRoom(channel.toLower(), msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handlePart(const QString &prefix, const QStringList &params)
-{
-    if (params.isEmpty()) return;
-
-    QString channel = params[0];
-    QString reason = params.size() > 1 ? params[1] : QString();
-    QString nick = extractNick(prefix);
-
-    ProtocolMessage msg;
-    msg.senderId = nick;
-    msg.senderName = nick;
-    msg.text = reason.isEmpty()
-        ? QStringLiteral("%1 has left").arg(nick)
-        : QStringLiteral("%1 has left (%2)").arg(nick, reason);
-    msg.roomId = channel.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::PART;
-    msg.protocolType = ProtocolType::IRC;
-
-    if (nick.toLower() == currentNick_.toLower()) {
-        rooms_.remove(channel.toLower());
-        messages_.remove(channel.toLower());
-    } else {
-        auto *room = findRoom(channel);
-        if (room && room->memberCount > 0) {
-            room->memberCount--;
-            emit roomUpdated(*room);
-        }
-    }
-
-    addMessageToRoom(channel.toLower(), msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleQuit(const QString &prefix, const QStringList &params)
-{
-    QString reason = params.isEmpty() ? QString() : params[0];
-    QString nick = extractNick(prefix);
-
-    ProtocolMessage msg;
-    msg.senderId = nick;
-    msg.senderName = nick;
-    msg.text = reason.isEmpty()
-        ? QStringLiteral("%1 has quit").arg(nick)
-        : QStringLiteral("%1 has quit (%2)").arg(nick, reason);
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::PART;
-    msg.protocolType = ProtocolType::IRC;
-
-    for (auto it = rooms_.begin(); it != rooms_.end(); ++it) {
-        msg.roomId = it.key();
-        addMessageToRoom(it.key(), msg);
-        if (it->memberCount > 0) {
-            it->memberCount--;
-            emit roomUpdated(it.value());
-        }
-        emit messageReceived(msg);
-    }
-}
-
-void IrcSession::handleNotice(const QString &prefix, const QStringList &params)
-{
-    if (params.size() < 2) return;
-
-    QString target = params[0];
-    QString text = params[1];
-
-    QString senderNick = extractNick(prefix);
-
-    ProtocolMessage msg;
-    msg.senderId = senderNick.isEmpty() ? currentNick_ : senderNick;
-    msg.senderName = msg.senderId;
-    msg.text = text;
-    msg.roomId = target.startsWith(QLatin1Char('#')) ? target.toLower() : senderNick.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::NOTICE;
-    msg.protocolType = ProtocolType::IRC;
-
-    addMessageToRoom(msg.roomId, msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleMode(const QString &prefix, const QStringList &params)
-{
-    if (params.isEmpty()) return;
-
-    QString channel = params[0];
-    QString modeStr = params.size() > 1 ? params[1] : QString();
-    QString nickParam = params.size() > 2 ? params[2] : QString();
-
-    auto *room = findRoom(channel);
-    if (!room) return;
-
-    QString senderNick = extractNick(prefix);
-    QString desc = modeStr;
-
-    if (!nickParam.isEmpty()) {
-        desc = QStringLiteral("%1 sets mode %2 %3").arg(
-            senderNick.isEmpty() ? QStringLiteral("Server") : senderNick,
-            modeStr,
-            nickParam);
-    } else if (!senderNick.isEmpty()) {
-        desc = QStringLiteral("%1 sets mode %2").arg(senderNick, modeStr);
-    }
-
-    ProtocolMessage msg;
-    msg.senderId = senderNick.isEmpty() ? QStringLiteral("server") : senderNick;
-    msg.senderName = msg.senderId;
-    msg.text = desc;
-    msg.roomId = channel.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::SYSTEM;
-    msg.protocolType = ProtocolType::IRC;
-
-    addMessageToRoom(channel.toLower(), msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleKick(const QString &prefix, const QStringList &params)
-{
-    if (params.size() < 2) return;
-
-    QString channel = params[0];
-    QString targetNick = params[1];
-    QString reason = params.size() > 2 ? params[2] : QString();
-
-    QString kickerNick = extractNick(prefix);
-    bool selfKicked = (targetNick.toLower() == currentNick_.toLower());
-
-    ProtocolMessage msg;
-    msg.senderId = kickerNick;
-    msg.senderName = kickerNick;
-    msg.text = reason.isEmpty()
-        ? QStringLiteral("%1 was kicked by %2").arg(targetNick, kickerNick)
-        : QStringLiteral("%1 was kicked by %2 (%3)").arg(targetNick, kickerNick, reason);
-    msg.roomId = channel.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::KICK;
-    msg.protocolType = ProtocolType::IRC;
-
-    if (selfKicked) {
-        rooms_.remove(channel.toLower());
-        messages_.remove(channel.toLower());
-    } else {
-        auto *room = findRoom(channel);
-        if (room && room->memberCount > 0) {
-            room->memberCount--;
-            emit roomUpdated(*room);
-        }
-    }
-
-    addMessageToRoom(channel.toLower(), msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleTopic(const QString &prefix, const QStringList &params)
-{
-    if (params.size() < 2) return;
-
-    QString channel = params[0];
-    QString topic = params[1];
-
-    QString senderNick = extractNick(prefix);
-
-    auto *room = findRoom(channel);
-    if (room) {
-        room->topic = topic;
-        emit roomUpdated(*room);
-    }
-
-    ProtocolMessage msg;
-    msg.senderId = senderNick.isEmpty() ? QStringLiteral("server") : senderNick;
-    msg.senderName = msg.senderId;
-    msg.text = QStringLiteral("Topic changed by %1: %2").arg(
-        senderNick.isEmpty() ? QStringLiteral("server") : senderNick, topic);
-    msg.roomId = channel.toLower();
-    msg.timestamp = QDateTime::currentSecsSinceEpoch();
-    msg.contentType = ProtocolContentType::TOPIC;
-    msg.protocolType = ProtocolType::IRC;
-
-    addMessageToRoom(channel.toLower(), msg);
-    emit messageReceived(msg);
-}
-
-void IrcSession::handleNick(const QString &prefix, const QStringList &params)
-{
-    if (params.isEmpty()) return;
-
-    QString oldNick = extractNick(prefix);
-    QString newNick = params[0];
-
-    if (oldNick.toLower() == currentNick_.toLower()) {
-        currentNick_ = newNick;
-    }
-
-    for (auto it = rooms_.begin(); it != rooms_.end(); ++it) {
-        ProtocolMessage msg;
-        msg.senderId = oldNick;
-        msg.senderName = oldNick;
-        msg.text = QStringLiteral("%1 is now known as %2").arg(oldNick, newNick);
-        msg.roomId = it.key();
-        msg.timestamp = QDateTime::currentSecsSinceEpoch();
-        msg.contentType = ProtocolContentType::SYSTEM;
-        msg.protocolType = ProtocolType::IRC;
-
-        addMessageToRoom(it.key(), msg);
-        emit messageReceived(msg);
-    }
-}
-
-// ─── Numeric handlers ─────────────────────────────────────────────────────────
-
-void IrcSession::handleNumeric(int numeric, const QString &prefix, const QStringList &params)
-{
-    switch (numeric) {
-    case 1: // RPL_WELCOME
-        registered_ = true;
-        setConnectionState(ConnectionState::REGISTERED);
-
-        if (!pingTimer_) {
-            pingTimer_ = new QTimer(this);
-            connect(pingTimer_, &QTimer::timeout, this, [this]() {
-                if (state_ == ConnectionState::REGISTERED) {
-                    sendRaw(QStringLiteral("PING %1").arg(serverInfo_.host));
-                }
-            });
-            pingTimer_->start(120000);
-        }
-        break;
-
-    case 2: // RPL_YOURHOST
-    case 3: // RPL_CREATED
-    case 4: // RPL_MYINFO
-    case 5: { // RPL_BOUNCE / ISUPPORT
-        ProtocolMessage msg;
-        msg.senderId = QStringLiteral("server");
-        msg.senderName = QStringLiteral("Server");
-        msg.text = params.mid(1).join(QStringLiteral(" "));
-        msg.roomId = QStringLiteral("*status");
-        msg.timestamp = QDateTime::currentSecsSinceEpoch();
-        msg.contentType = ProtocolContentType::SYSTEM;
-        msg.protocolType = ProtocolType::IRC;
-        addMessageToRoom(msg.roomId, msg);
-        emit messageReceived(msg);
-        break;
-    }
-
-    case 353: { // RPL_NAMREPLY
-        if (params.size() < 4) return;
-        QString channel = params[2];
-        QStringList names = params[3].split(QLatin1Char(' '), Qt::SkipEmptyParts);
-
-        auto *room = findRoom(channel);
-        if (room) {
-            room->memberCount += names.size();
-            emit roomUpdated(*room);
-        }
-
-        ProtocolMessage msg;
-        msg.senderId = QStringLiteral("server");
-        msg.senderName = QStringLiteral("Names");
-        msg.text = QStringLiteral("Users in %1: %2").arg(channel, names.join(QStringLiteral(", ")));
-        msg.roomId = channel.toLower();
-        msg.timestamp = QDateTime::currentSecsSinceEpoch();
-        msg.contentType = ProtocolContentType::SYSTEM;
-        msg.protocolType = ProtocolType::IRC;
-        addMessageToRoom(msg.roomId, msg);
-        emit messageReceived(msg);
-        break;
-    }
-
-    case 366: // RPL_ENDOFNAMES
-        // End of /NAMES list; nothing fancier needed
-        break;
-
-    case 332: { // RPL_TOPIC
-        if (params.size() < 3) return;
-        QString channel = params[1];
-        QString topic = params[2];
-        auto *room = findRoom(channel);
-        if (room) {
-            room->topic = topic;
-            emit roomUpdated(*room);
-        }
-        break;
-    }
-
-    case 375: // RPL_MOTDSTART
-    case 372: // RPL_MOTD
-    case 376: // RPL_ENDOFMOTD
-        break;
-
-    case 421: // ERR_UNKNOWNCOMMAND
-    case 422: // ERR_NOMOTD
-        break;
-
-    default: {
-        if (numeric >= 400 && numeric < 600) {
-            QString errMsg = params.isEmpty()
-                ? QStringLiteral("IRC error %1").arg(numeric)
-                : params.mid(1).join(QStringLiteral(" "));
-            emit errorOccurred(QStringLiteral("[%1] %2").arg(numeric).arg(errMsg));
-        }
-        break;
-    }
-    }
-}
-
-void IrcSession::handlePing(const QStringList &params)
-{
-    QString token = params.isEmpty() ? QStringLiteral("") : params[0];
-    sendRaw(QStringLiteral("PONG :%1").arg(token));
-}
-
-// ─── Internal helpers ─────────────────────────────────────────────────────────
 
 void IrcSession::sendRaw(const QString &line)
 {
-    if (!socket_ || socket_->state() != QAbstractSocket::ConnectedState) {
+    if (m_socket && m_socket->isOpen())
+        m_socket->write((line + "\r\n").toUtf8());
+}
+
+void IrcSession::sendPrivmsg(const QString &target, const QString &message)
+{
+    sendRaw("PRIVMSG " + target + " :" + message);
+}
+
+void IrcSession::sendNotice(const QString &target, const QString &message)
+{
+    sendRaw("NOTICE " + target + " :" + message);
+}
+
+void IrcSession::sendJoin(const QString &channel)
+{
+    sendRaw("JOIN " + channel);
+}
+
+void IrcSession::sendPart(const QString &channel)
+{
+    sendRaw("PART " + channel + " :Leaving");
+}
+
+void IrcSession::sendNick(const QString &newNick)
+{
+    sendRaw("NICK " + newNick);
+}
+
+void IrcSession::sendWhois(const QString &nick)
+{
+    sendRaw("WHOIS " + nick);
+}
+
+void IrcSession::processLine(const QString &line)
+{
+    emit rawLineReceived(line);
+
+    if (line.startsWith("PING ")) {
+        sendRaw("PONG " + line.mid(5));
         return;
     }
-    socket_->write(line.toUtf8() + "\r\n");
-}
 
-void IrcSession::setConnectionState(ConnectionState state)
-{
-    if (state_ != state) {
-        state_ = state;
-        emit connectionStateChanged(ProtocolType::IRC, state);
+    // Parse IRC message format: ":prefix COMMAND params :trailing"
+    QString rest = line;
+    QString prefix;
+
+    if (rest.startsWith(":")) {
+        int space = rest.indexOf(" ");
+        prefix = rest.mid(1, space - 1);
+        rest = rest.mid(space + 1);
+    }
+
+    int space = rest.indexOf(" ");
+    QString command = space > 0 ? rest.left(space).toUpper() : rest.toUpper();
+    QString paramsStr = space > 0 ? rest.mid(space + 1) : "";
+
+    // Split params, respecting trailing parameter
+    QStringList params;
+    if (paramsStr.contains(" :")) {
+        int colon = paramsStr.indexOf(" :");
+        params = paramsStr.left(colon).split(" ", Qt::SkipEmptyParts);
+        params.append(paramsStr.mid(colon + 2));
+    } else {
+        params = paramsStr.split(" ", Qt::SkipEmptyParts);
+    }
+
+    // Handle commands
+    if (command == "PRIVMSG") {
+        QString target = params.value(0);
+        QString text = params.value(1);
+        handlePrivmsg(prefix, target, text);
+    } else if (command == "NOTICE") {
+        QString target = params.value(0);
+        QString text = params.value(1);
+        // Notices are informational, less important
+    } else if (command == "JOIN") {
+        handleJoin(prefix, params.value(0));
+    } else if (command == "PART") {
+        handlePart(prefix, params.value(0), params.value(1));
+    } else if (command == "NICK") {
+        handleNick(prefix, params.value(0));
+    } else if (command == "TOPIC") {
+        handleTopic(prefix, params.value(0), params.value(1));
+    } else if (command == "QUIT") {
+        handleQuit(prefix, params.value(0));
+    } else if (command == "MODE") {
+        handleMode(prefix, params.value(0), params.value(1), params.value(2));
+    } else if (command == "KICK") {
+        handleKick(prefix, params.value(0), params.value(1), params.value(2));
+    }
+
+    // Numeric replies (001-599)
+    bool isNumeric = false;
+    int numericCode = command.toInt(&isNumeric);
+    if (isNumeric) {
+        handleNumeric(numericCode, params);
     }
 }
 
-QString IrcSession::extractNick(const QString &prefix) const
+void IrcSession::handlePing(const QString &server) { sendRaw("PONG " + server); }
+
+void IrcSession::handlePrivmsg(const QString &prefix, const QString &target, const QString &text)
 {
-    int excl = prefix.indexOf(QLatin1Char('!'));
-    if (excl != -1) {
-        return prefix.left(excl);
+    auto [nick, userhost] = parsePrefix(prefix);
+
+    ProtocolMessage msg;
+    msg.protocol = ProtocolType::IRC;
+    msg.roomId = target;
+    msg.senderId = nick;
+    msg.senderName = nick;
+    msg.body = text;
+    msg.timestamp = QDateTime::currentDateTime();
+
+    if (text.startsWith("\001ACTION ") && text.endsWith("\001")) {
+        msg.type = MessageType::Emote;
+        msg.body = text.mid(8, text.length() - 9);
     }
-    int at = prefix.indexOf(QLatin1Char('@'));
-    if (at != -1) {
-        return prefix;
-    }
-    return prefix;
+
+    emitMessage(msg);
 }
 
-QString IrcSession::extractUser(const QString &prefix) const
+void IrcSession::handleJoin(const QString &prefix, const QString &channel)
 {
-    int excl = prefix.indexOf(QLatin1Char('!'));
-    if (excl == -1) return {};
-    int at = prefix.indexOf(QLatin1Char('@'), excl);
-    if (at == -1) return prefix.mid(excl + 1);
-    return prefix.mid(excl + 1, at - excl - 1);
-}
+    auto [nick, userhost] = parsePrefix(prefix);
 
-QString IrcSession::extractHost(const QString &prefix) const
-{
-    int at = prefix.indexOf(QLatin1Char('@'));
-    if (at == -1) return {};
-    return prefix.mid(at + 1);
-}
-
-ProtocolRoom *IrcSession::findRoom(const QString &channel)
-{
-    auto it = rooms_.find(channel.toLower());
-    if (it == rooms_.end()) return nullptr;
-    return &it.value();
-}
-
-void IrcSession::addMessageToRoom(const QString &roomId, const ProtocolMessage &msg)
-{
-    messages_[roomId.toLower()].append(msg);
-
-    auto *room = findRoom(roomId);
-    if (room) {
-        room->lastMessageTimestamp = msg.timestamp;
-        QString preview = msg.text.left(80);
-        preview.replace(QLatin1Char('\n'), QLatin1Char(' '));
-        room->lastMessagePreview = preview;
-        room->unreadCount++;
-        emit roomUpdated(*room);
+    if (nick == m_nickname) {
+        ProtocolRoom room;
+        room.id = channel;
+        room.protocol = ProtocolType::IRC;
+        room.type = RoomType::Channel;
+        room.name = channel;
+        addRoom(room);
     }
 }
+
+void IrcSession::handlePart(const QString &prefix, const QString &channel, const QString &reason)
+{
+    auto [nick, userhost] = parsePrefix(prefix);
+    Q_UNUSED(nick); Q_UNUSED(reason);
+}
+
+void IrcSession::handleNick(const QString &prefix, const QString &newNick)
+{
+    auto [oldNick, userhost] = parsePrefix(prefix);
+    emit nickChanged(oldNick, newNick);
+}
+
+void IrcSession::handleTopic(const QString &prefix, const QString &channel, const QString &topic)
+{
+    Q_UNUSED(prefix);
+    if (hasRoom(channel)) {
+        ProtocolRoom room = this->room(channel);
+        room.topic = topic;
+        updateRoom(room);
+    }
+}
+
+void IrcSession::handleQuit(const QString &prefix, const QString &reason)
+{
+    Q_UNUSED(prefix); Q_UNUSED(reason);
+}
+
+void IrcSession::handleMode(const QString &prefix, const QString &channel,
+                              const QString &modes, const QString &target)
+{
+    Q_UNUSED(prefix); Q_UNUSED(channel); Q_UNUSED(modes); Q_UNUSED(target);
+}
+
+void IrcSession::handleKick(const QString &prefix, const QString &channel,
+                              const QString &target, const QString &reason)
+{
+    Q_UNUSED(prefix); Q_UNUSED(channel); Q_UNUSED(target); Q_UNUSED(reason);
+}
+
+void IrcSession::handleNumeric(int code, const QStringList &params)
+{
+    switch (code) {
+        case 1: // RPL_WELCOME
+            m_registered = true;
+            setConnected(true);
+            startPingTimer();
+            break;
+        case 375: case 372: case 376: // MOTD
+            if (params.size() >= 2) {
+                QString motdLine = params.size() > 2 ? params[2] : params[1];
+                if (motdLine.startsWith(":-"))
+                    motdLine = motdLine.mid(1).trimmed();
+                if (!motdLine.isEmpty()) {
+                    QString motd = params.value(2);
+                    emit motdReceived(motd);
+                }
+            }
+            break;
+        case 353: // RPL_NAMREPLY
+            if (params.size() >= 4) {
+                QString channel = params[2];
+                QStringList users = params[3].split(" ", Qt::SkipEmptyParts);
+                emit usersListReceived(channel, users);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void IrcSession::startPingTimer()
+{
+    QObject::connect(&m_pingTimer, &QTimer::timeout, this, [this]() {
+        sendRaw("PING :" + m_server);
+    });
+    m_pingTimer.start(60000);
+}
+
+QPair<QString, QString> IrcSession::parsePrefix(const QString &prefix)
+{
+    int excl = prefix.indexOf("!");
+    if (excl > 0) {
+        QString nick = prefix.left(excl);
+        QString userhost = prefix.mid(excl + 1);
+        return {nick, userhost};
+    }
+    return {prefix, ""};
+}
+
+} // namespace progressive_chat

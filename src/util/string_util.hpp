@@ -1,42 +1,67 @@
 #pragma once
 
-#include <QByteArray>
-#include <QChar>
 #include <QString>
 #include <QStringList>
-#include <Qt>
+#include <QRegularExpression>
 
-namespace StringUtil {
+namespace progressive_chat {
+namespace util {
 
-bool isEmpty(const QString& str);
+inline QString ellipsize(const QString &text, int maxLen = 50)
+{
+    if (text.length() <= maxLen) return text;
+    return text.left(maxLen - 3) + "...";
+}
 
-bool isBlank(const QString& str);
+inline QString truncate(const QString &text, int maxLen)
+{
+    return text.left(maxLen);
+}
 
-QString trim(const QString& str);
+inline QString stripHtml(const QString &html)
+{
+    QRegularExpression re("<[^>]*>");
+    return html.replace(re, "");
+}
 
-QStringList split(const QString& str, QChar delimiter);
+inline QStringList splitLines(const QString &text)
+{
+    return text.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
+}
 
-QString join(const QStringList& list, const QString& separator);
+inline bool isValidMatrixId(const QString &id)
+{
+    // @user:server or !room:server or #alias:server
+    QRegularExpression re("^[@!#][a-zA-Z0-9._=/\-]+:[a-zA-Z0-9.-]+(?:\:[0-9]+)?$");
+    return re.match(id).hasMatch();
+}
 
-bool contains(const QString& str, const QString& substring,
-              Qt::CaseSensitivity cs = Qt::CaseInsensitive);
+inline QString extractServerName(const QString &matrixId)
+{
+    int colon = matrixId.lastIndexOf(':');
+    return colon > 0 ? matrixId.mid(colon + 1) : "";
+}
 
-bool startsWith(const QString& str, const QString& prefix);
+inline QString extractLocalPart(const QString &matrixId)
+{
+    int colon = matrixId.indexOf(':');
+    return colon > 0 ? matrixId.mid(1, colon - 1) : matrixId;
+}
 
-QString md5(const QString& str);
+inline QString sanitizeFilename(const QString &name)
+{
+    QString result = name;
+    result.replace(QRegularExpression("[<>:"/\\\\|?*]"), "_");
+    return result;
+}
 
-QString sha256(const QString& str);
+inline QString formatBytes(qint64 bytes)
+{
+    if (bytes < 1024) return QString("%1 B").arg(bytes);
+    if (bytes < 1024 * 1024) return QString("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
+    if (bytes < 1024 * 1024 * 1024) return QString("%1 MB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 1);
+    return QString("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+}
 
-QString base64Encode(const QByteArray& data);
-
-QByteArray base64Decode(const QString& str);
-
-QString urlEncode(const QString& str);
-
-QString urlDecode(const QString& str);
-
-QString ellipsize(const QString& str, int maxLength);
-
-QString generateUuid();
-
-} // namespace StringUtil
+} // namespace util
+} // namespace progressive_chat

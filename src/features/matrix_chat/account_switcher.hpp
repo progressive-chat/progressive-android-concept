@@ -1,77 +1,41 @@
 #pragma once
 
-#include <QWidget>
-#include <QVector>
-#include <QString>
+#include <QDialog>
+#include <QListWidget>
 #include <QPushButton>
 #include <QLabel>
-#include <QMenu>
-#include <QAction>
-#include "protocol/protocol_type.hpp"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 
-namespace progressive {
+namespace progressive_chat {
 
-struct AccountEntry {
-    ProtocolType protocolType = ProtocolType::MATRIX;
-    QString accountId;
-    QString displayName;
-    QString serverName;
-    QString avatarUrl;
-    ConnectionState connectionState = ConnectionState::DISCONNECTED;
-};
+class ProtocolManager;
 
-class AccountSwitcher : public QWidget
+class AccountSwitcher : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit AccountSwitcher(QWidget *parent = nullptr);
-    ~AccountSwitcher() override;
-
-    QVector<AccountEntry> accounts() const;
-    AccountEntry currentAccount() const;
-    void setCurrentAccount(const QString &accountId, ProtocolType type);
-
-public slots:
-    void refreshAccounts();
-    void onConnectionStateChanged(ProtocolType type, ConnectionState state);
+    explicit AccountSwitcher(ProtocolManager *manager, QWidget *parent = nullptr);
 
 signals:
-    void accountSwitched(ProtocolType type, QString accountId);
-    void addAccountRequested(ProtocolType type);
-    void logoutRequested(ProtocolType type, QString accountId);
-    void profileEditRequested();
-
-private slots:
-    void onToggleClicked();
-    void onAccountActionTriggered();
-    void onAddAccountTriggered();
-    void onLogoutRequested();
-    void onSetStatusTriggered();
-    void onEditProfileTriggered();
-    void onViewProfileTriggered();
+    void accountSelected(const QString &sessionId);
+    void addAccountRequested();
+    void accountRemoved(const QString &sessionId);
 
 private:
+    void refreshAccounts();
     void setupUi();
-    void rebuildMenu();
-    QMenu *createProfileMenu();
-    QAction *createAccountAction(const AccountEntry &entry);
-    void updateToggleAppearance();
+    void onAccountClicked(int row);
+    void onAddAccount();
+    void onRemoveAccount();
 
-    static QColor statusDotColor(ConnectionState state);
-    static QString protocolDisplayName(ProtocolType type);
-    static QString protocolIconChar(ProtocolType type);
-    static QColor protocolColor(ProtocolType type);
-    static QString initialsFromName(const QString &name);
-    static QPixmap makeAvatarPixmap(const QString &name, int size, const QColor &bg);
-
-    QPushButton *m_toggleButton = nullptr;
-    QMenu *m_menu = nullptr;
-    QMenu *m_profileMenu = nullptr;
-
-    QVector<AccountEntry> m_accounts;
-    QString m_currentAccountId;
-    ProtocolType m_currentProtocolType = ProtocolType::MATRIX;
+    ProtocolManager *m_protocolManager;
+    QListWidget *m_accountList;
+    QPushButton *m_addBtn;
+    QPushButton *m_removeBtn;
+    QPushButton *m_switchBtn;
+    QLabel *m_infoLabel;
 };
 
-} // namespace progressive
+} // namespace progressive_chat

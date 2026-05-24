@@ -1,91 +1,69 @@
 #pragma once
 
 #include <QObject>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QVector>
 #include <QString>
-#include <QStringList>
-#include <QNetworkAccessManager>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QHash>
 
-class QNetworkReply;
+namespace progressive_chat {
 
-class MatrixPushRules : public QObject {
+enum class PushAction {
+    Notify,
+    DontNotify,
+    Coalesce,
+    SetTweak,
+    Unknown
+};
+
+struct PushCondition {
+    QString kind;           // "event_match", "contains_display_name", "room_member_count"
+    QString key;            // e.g., "content.body"
+    QString pattern;        // Glob pattern
+    QString is;             // Exact match
+    QJsonObject raw;
+};
+
+struct PushRule {
+    QString ruleId;
+    bool isDefault = true;
+    bool enabled = true;
+    int priority = 0;
+    QString kind;           // "override", "underride", "content", "room", "sender"
+    QString rule;           // The actual rule pattern (room_id, sender, etc.)
+    QList<PushAction> actions;
+    QList<PushCondition> conditions;
+    QHash<QString, QString> tweaks; // sound, highlight, color
+    QJsonObject raw;
+};
+
+class MatrixPushRules : public QObject
+{
     Q_OBJECT
 
 public:
-    enum class RuleType { Override, Content, Room, Sender, Underride };
-    enum class RuleKind { Global, Device };
-    enum class Action { Notify, DontNotify, Coalesce };
-
-    struct Condition {
-        QString kind;
-        QString key;
-        QString pattern;
-        bool is = true;
-        bool operator==(const Condition &o) const {
-            return kind == o.kind && key == o.key && pattern == o.pattern && is == o.is;
-        }
-    };
-
-    struct PushRule {
-        QString ruleId;
-        RuleType type = RuleType::Override;
-        RuleKind kind = RuleKind::Global;
-        QVector<Action> actions;
-        QString pattern;
-        QVector<Condition> conditions;
-        bool enabled = true;
-        bool defaultRule = true;
-    };
-
     explicit MatrixPushRules(QObject *parent = nullptr);
+    ~MatrixPushRules() override;
 
-    void setCredentials(const QString &homeserverUrl,
-                        const QString &userId,
-                        const QString &accessToken);
+    void loadGlobalRules(const QJsonObject &data);
+    void mergeFromSync(const QJsonObject &data);
 
-    void refresh();
-    QVector<PushRule> allRules() const;
+    QList<PushRule> matchingRules(const QString &roomId, const QString &sender,
+                                   bool isDirect, bool isHighlighted,
+                                   const QString &body, int memberCount) const;
 
-    bool shouldNotify(const QJsonObject &event, const QString &roomId) const;
+    QList<PushRule> allRules() const { return m_globalRules; }
+    bool isNoisyRule(const PushRule &rule) const;
+    bool shouldNotify(const PushRule &rule) const;
+    QString soundForRule(const PushRule &rule) const;
+    QString highlightColor(const PushRule &rule) const;
 
-    void setRoomMuted(const QString &roomId, bool muted);
-    void setSenderMuted(const QString &userId, bool muted);
-    void setKeywordRule(const QString &keyword, bool enabled);
-
-    bool isRoomMuted(const QString &roomId) const;
-    bool isKeywordMatch(const QString &text) const;
-
-signals:
-    void rulesUpdated();
-
-private slots:
-    void onRefreshReply(QNetworkReply *reply);
+    static PushRule parseRule(const QJsonObject &obj);
+    static QJsonObject serializeRule(const PushRule &rule);
 
 private:
-    void parseResponse(const QJsonObject &json);
-    void parseRuleSet(const QJsonArray &rules, RuleType type, RuleKind kind);
-    bool evaluateRule(const PushRule &rule, const QJsonObject &event,
-                      const QString &roomId) const;
-    bool evaluateCondition(const Condition &cond, const QJsonObject &event,
-                           const QString &roomId) const;
-    bool globMatch(const QString &pattern, const QString &text) const;
-
-    static Action actionFromString(const QString &s);
-    static QString actionToString(Action a);
-    static RuleType ruleTypeFromString(const QString &s);
-    static QString ruleTypeToString(RuleType t);
-    static RuleKind ruleKindFromString(const QString &s);
-
-    QNetworkAccessManager *m_nam = nullptr;
-    QString m_homeserverUrl;
-    QString m_userId;
-    QString m_accessToken;
-
-    QVector<PushRule> m_rules;
-
-    QStringList m_mutedRooms;
-    QStringList m_mutedSenders;
-    QStringList m_keywords;
+    QList<PushRule> m_globalRules;
+    QHash<QString, PushRule> m_roomRules; // Per-room overrides
 };
+
+} // namespace progressive_chat

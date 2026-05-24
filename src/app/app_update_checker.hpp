@@ -1,57 +1,44 @@
 #pragma once
 
-#include <QObject>
 #include <QString>
-#include <QScopedPointer>
+#include <QObject>
 #include <QVersionNumber>
 
-class QNetworkAccessManager;
-class QNetworkReply;
-class QTimer;
-
-namespace progressive {
+namespace progressive_chat {
 
 class AppUpdateChecker : public QObject
 {
     Q_OBJECT
 
 public:
-    static AppUpdateChecker &instance();
+    struct UpdateInfo {
+        bool available = false;
+        QString version;
+        QString url;
+        QString changelog;
+        bool mandatory = false;
+        qint64 sizeBytes = 0;
+    };
 
-    void checkForUpdates();
-    void checkForUpdatesPeriodically();
-
-    void setCurrentVersion(const QString &version);
-    QString currentVersion() const;
-
-    bool isUpdateAvailable() const;
-    QString latestVersion() const;
-    QString downloadUrl() const;
-    QString releaseNotes() const;
-
-    void openDownloadPage();
+    static void checkForUpdates();
+    static UpdateInfo latestUpdateInfo();
+    static bool isUpdateAvailable();
+    static void downloadUpdate();
 
 signals:
-    void updateAvailable(const QString &latestVersion,
-                         const QString &downloadUrl,
-                         const QString &releaseNotes);
-    void noUpdateAvailable();
-    void checkFailed(const QString &error);
+    void updateAvailable(const UpdateInfo &info);
+    void downloadProgress(qint64 received, qint64 total);
+    void downloadComplete(const QString &path);
 
 private:
+    static AppUpdateChecker &instance();
+
     explicit AppUpdateChecker(QObject *parent = nullptr);
-    ~AppUpdateChecker() override;
-    Q_DISABLE_COPY(AppUpdateChecker)
+    void performCheck();
+    void parseResponse(const QByteArray &data);
 
-    void onReplyFinished(QNetworkReply *reply);
-
-    QNetworkAccessManager *m_nam;
-    QTimer *m_periodicTimer;
-    QString m_currentVersion;
-    QString m_latestVersion;
-    QString m_downloadUrl;
-    QString m_releaseNotes;
-    bool m_updateAvailable = false;
+    UpdateInfo m_latestInfo;
+    bool m_checked = false;
 };
 
-} // namespace progressive
+} // namespace progressive_chat

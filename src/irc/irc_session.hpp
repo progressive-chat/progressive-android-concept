@@ -1,98 +1,84 @@
 #pragma once
 
-#include <QObject>
-#include <QString>
-#include <QVector>
-#include <QMap>
-#include <QStringList>
 #include "../protocol/protocol_session.hpp"
-#include "../protocol/protocol_message.hpp"
-#include "../protocol/protocol_room.hpp"
-#include "../protocol/protocol_type.hpp"
+#include <QString>
+#include <QTimer>
 
-#include <QtNetwork/QSslError>
-
+class QNetworkAccessManager;
 class QTcpSocket;
-class QSslSocket;
-class QTimer;
 
-struct IrcServerInfo {
-    QString host;
-    quint16 port = 6667;
-    bool useTls = false;
-    QString nick;
-    QString user;
-    QString realName;
-    QString password;
+namespace progressive_chat {
 
-    QString serverId() const {
-        return host + QStringLiteral(":") + QString::number(port);
-    }
-};
-
-class IrcSession : public IProtocolSession {
+class IrcSession : public ProtocolSession
+{
     Q_OBJECT
 
 public:
-    explicit IrcSession(const IrcServerInfo &info, QObject *parent = nullptr);
+    explicit IrcSession(QNetworkAccessManager *network, QObject *parent = nullptr);
     ~IrcSession() override;
 
-    void open() override;
-    void close() override;
-    void sendMessage(const QString &roomId, const QString &text, ProtocolContentType contentType) override;
-    QVector<ProtocolRoom> getRooms() override;
-    QVector<ProtocolMessage> getMessages(const QString &roomId, int limit = 50) override;
-    void markAsRead(const QString &roomId) override;
-    void joinRoom(const QString &roomIdOrAlias) override;
+    void setServer(const QString &server) { m_server = server; }
+    void setPort(int port) { m_port = port; }
+    void setNick(const QString &nick) { m_nickname = nick; }
+    void setPassword(const QString &pass) { m_password = pass; }
+    void setUseSsl(bool ssl) { m_useSsl = ssl; }
+
+    QString server() const { return m_server; }
+
+    void connect() override;
+    void disconnect() override;
+    void reconnect() override;
+
+    void sendMessage(const QString &roomId, const QString &body,
+                     const QString &replyTo = "") override;
+    void sendTyping(const QString &roomId, bool typing) override;
+    void markRead(const QString &roomId) override;
+    void joinRoom(const QString &roomId) override;
     void leaveRoom(const QString &roomId) override;
-    QVector<ProtocolRoom> searchRooms(const QString &query) override;
 
-    ProtocolType protocolType() const override;
-    ConnectionState connectionState() const override;
-    QString userId() const override;
-    QString displayName() const override;
+    void sendRaw(const QString &line);
+    void sendPrivmsg(const QString &target, const QString &message);
+    void sendNotice(const QString &target, const QString &message);
+    void sendJoin(const QString &channel);
+    void sendPart(const QString &channel);
+    void sendNick(const QString &newNick);
+    void sendWhois(const QString &nick);
 
-private slots:
-    void onConnected();
-    void onDisconnected();
-    void onReadyRead();
-    void onError();
-    void onSslErrors(const QList<QSslError> &errors);
+signals:
+    void rawLineReceived(const QString &line);
+    void nickChanged(const QString &oldNick, const QString &newNick);
+    void motdReceived(const QString &motd);
+    void channelListReceived(const QList<QPair<QString, int>> &channels);
+    void usersListReceived(const QString &channel, const QStringList &users);
 
 private:
-    void sendRaw(const QString &line);
-    void parseLine(const QString &line);
-    void setConnectionState(ConnectionState state);
+    void processLine(const QString &line);
+    void handlePing(const QString &server);
+    void handlePrivmsg(const QString &prefix, const QString &target, const QString &text);
+    void handleJoin(const QString &prefix, const QString &channel);
+    void handlePart(const QString &prefix, const QString &channel, const QString &reason);
+    void handleNick(const QString &prefix, const QString &newNick);
+    void handleTopic(const QString &prefix, const QString &channel, const QString &topic);
+    void handleQuit(const QString &prefix, const QString &reason);
+    void handleMode(const QString &prefix, const QString &channel,
+                    const QString &modes, const QString &target);
+    void handleKick(const QString &prefix, const QString &channel,
+                    const QString &target, const QString &reason);
+    void handleNumeric(int code, const QStringList &params);
+    void startPingTimer();
+    QPair<QString, QString> parsePrefix(const QString &prefix);
 
-    void handlePrivmsg(const QString &prefix, const QStringList &params);
-    void handleJoin(const QString &prefix, const QStringList &params);
-    void handlePart(const QString &prefix, const QStringList &params);
-    void handleQuit(const QString &prefix, const QStringList &params);
-    void handleNotice(const QString &prefix, const QStringList &params);
-    void handleMode(const QString &prefix, const QStringList &params);
-    void handleKick(const QString &prefix, const QStringList &params);
-    void handleTopic(const QString &prefix, const QStringList &params);
-    void handleNick(const QString &prefix, const QStringList &params);
-    void handleNumeric(int numeric, const QString &prefix, const QStringList &params);
-    void handlePing(const QStringList &params);
-
-    QString extractNick(const QString &prefix) const;
-    QString extractUser(const QString &prefix) const;
-    QString extractHost(const QString &prefix) const;
-
-    ProtocolRoom *findRoom(const QString &channel);
-    void addMessageToRoom(const QString &roomId, const ProtocolMessage &msg);
-
-    IrcServerInfo serverInfo_;
-    QTcpSocket *socket_ = nullptr;
-    QTimer *pingTimer_ = nullptr;
-
-    QString readBuffer_;
-    QString currentNick_;
-
-    QMap<QString, ProtocolRoom> rooms_;
-    QMap<QString, QVector<ProtocolMessage>> messages_;
-
-    ConnectionState state_ = ConnectionState::DISCONNECTED;
-    bool registered_ = false;
+    QNetworkAccessManager *m_networkManager;
+    QTcpSocket *m_socket = nullptr;
+    QString m_server;
+    int m_port = 6667;
+    QString m_nickname;
+    QString m_password;
+    QString m_realName = "Progressive Chat User";
+    bool m_useSsl = false;
+    QTimer m_pingTimer;
+    QString m_readBuffer;
+    bool m_registered = false;
 };
+
+} // namespace progressive_chat

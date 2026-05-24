@@ -1,121 +1,216 @@
-#include "app/application.hpp"
+#include "application.hpp"
+#include "main_window.hpp"
+#include "notification_manager.hpp"
+#include "crash_reporter.hpp"
+#include "log_collector.hpp"
+#include "app_update_checker.hpp"
+#include "../protocol/protocol_manager.hpp"
+#include "../ui/themes/theme_manager.hpp"
 
-#include <QSettings>
+#include <QDir>
+#include <QStandardPaths>
+#include <QNetworkProxy>
+#include <QNetworkAccessManager>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMessageBox>
+#include <QTimer>
+#include <QSocketNotifier>
+#include <QFile>
+#include <QTextStream>
+#include <QMutex>
+#include <iostream>
 
-#include "irc/irc_session_holder.hpp"
-#include "lemmy/lemmy_session_holder.hpp"
-#include "matrix/matrix_session.hpp"
-#include "protocol/protocol_manager.hpp"
+namespace progressive_chat {
 
-namespace progressive {
-
-Application& Application::instance()
+Application::Application(int &argc, char **argv)
+    : QApplication(argc, argv)
 {
-    static Application app;
-    return app;
+    setQuitOnLastWindowClosed(false);
 }
 
-Application::Application(QObject* parent)
-    : QObject(parent)
-{
-}
+Application::~Application() = default;
 
-Application::~Application()
+QString Application::configDirectory() const { return m_configDir; }
+void Application::setConfigDirectory(const QString &path) { m_configDir = path; }
+void Application::setDebugLogging(bool enabled) { m_debugLogging = enabled; }
+void Application::setCrashReportingEnabled(bool enabled) { m_crashReporting = enabled; }
+void Application::setProxyUrl(const QString &url) { m_proxyUrl = url; }
+
+void Application::setLogFile(const QString &path)
 {
-    if (m_initialized) {
-        shutdown();
+    static QFile logFile;
+    if (logFile.isOpen()) logFile.close();
+    logFile.setFileName(path);
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &ctx, const QString &msg) {
+            QTextStream stream(&logFile);
+            stream << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+                   << " [" << type << "] " << msg << "
+";
+            stream.flush();
+        });
     }
 }
 
-void Application::loadSettings()
+bool Application::initialize()
 {
-    QSettings settings;
-    loadMatrixSettings();
-    loadIrcSettings();
-    loadLemmySettings();
-    loadPreferences();
-}
+    setupLogging();
+    setupNetwork();
+    setupProtocolSupport();
 
-void Application::loadMatrixSettings()
-{
-    Q_UNUSED(this);
-}
-
-void Application::loadIrcSettings()
-{
-    Q_UNUSED(this);
-}
-
-void Application::loadLemmySettings()
-{
-    Q_UNUSED(this);
-}
-
-void Application::loadPreferences()
-{
-    Q_UNUSED(this);
-}
-
-void Application::startProtocolManager()
-{
-    if (m_initialized) {
-        return;
+    // Initialize crash reporter
+    if (m_crashReporting) {
+        CrashReporter::instance().initialize(m_configDir);
     }
 
-    auto &pm = ProtocolManager::instance();
-    connect(&pm, &ProtocolManager::overallStateChanged,
-            this, [this](ConnectionState state) {
-                emit connectionStateChanged(ProtocolType::MATRIX, state);
-            });
+    // Initialize theme manager
+    m_themeManager = std::make_unique<ThemeManager>();
+    m_themeManager->loadTheme(m_configDir + "/theme.json");
 
-    pm.openAll();
-    m_initialized = true;
-    emit initialized();
+    // Initialize notification manager
+    m_notificationManager = std::make_unique<NotificationManager>();
+
+    // Create main window
+    m_mainWindow = std::make_unique<MainWindow>();
+    m_mainWindow->setThemeManager(m_themeManager.get());
+    m_mainWindow->setNotificationManager(m_notificationManager.get());
+    m_mainWindow->setProtocolManager(m_protocolManager.get());
+    m_mainWindow->initialize();
+
+    // Setup system tray
+    setupSystrayIntegration();
+
+    // Load previously saved sessions
+    loadSavedSessions();
+
+    // Register keyboard shortcuts
+    registerGlobalShortcuts();
+
+    // Periodic update check (every 6 hours)
+    auto *updateTimer = new QTimer(this);
+    QObject::connect(updateTimer, &QTimer::timeout, this, []() {
+        AppUpdateChecker::checkForUpdates();
+    });
+    updateTimer->start(6 * 60 * 60 * 1000);
+    AppUpdateChecker::checkForUpdates();
+
+    // Periodic log cleanup (every 24 hours)
+    auto *logCleanupTimer = new QTimer(this);
+    QObject::connect(logCleanupTimer, &QTimer::timeout, this, [this]() {
+        LogCollector::cleanupOldLogs(m_configDir, 30);
+    });
+    logCleanupTimer->start(24 * 60 * 60 * 1000);
+
+    return true;
 }
 
-void Application::shutdown()
+int Application::run()
 {
-    if (!m_initialized) {
-        return;
+    m_mainWindow->show();
+    return exec();
+}
+
+void Application::setupLogging()
+{
+    if (m_debugLogging) {
+        QLoggingCategory::setFilterRules("*.debug=true\nprogressive.*=true");
     }
 
-    ProtocolManager::instance().closeAll();
-    IrcSessionHolder::instance()->disconnectAll();
-    LemmySessionHolder::instance()->disconnectAll();
+    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &ctx, const QString &msg) {
+        static QMutex mutex;
+        QMutexLocker lock(&mutex);
 
-    m_initialized = false;
-    emit shutdownCompleted();
+        const char *typeStr = "UNKNOWN";
+        switch (type) {
+            case QtDebugMsg:    typeStr = "DEBUG"; break;
+            case QtInfoMsg:     typeStr = "INFO"; break;
+            case QtWarningMsg:  typeStr = "WARN"; break;
+            case QtCriticalMsg: typeStr = "CRITICAL"; break;
+            case QtFatalMsg:    typeStr = "FATAL"; break;
+        }
+
+        QTextStream out(stderr);
+        out << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+            << " [" << typeStr << "] "
+            << (ctx.category ? ctx.category : "default") << ": "
+            << msg << "
+";
+        out.flush();
+    });
 }
 
-ProtocolManager* Application::protocolManager() const
+void Application::setupNetwork()
 {
-    return &ProtocolManager::instance();
+    m_networkManager = std::make_unique<QNetworkAccessManager>();
+
+    if (!m_proxyUrl.isEmpty()) {
+        QUrl proxyUrl(m_proxyUrl);
+        QNetworkProxy proxy;
+        if (proxyUrl.scheme() == "socks5" || proxyUrl.scheme() == "socks5h") {
+            proxy.setType(QNetworkProxy::Socks5Proxy);
+        } else {
+            proxy.setType(QNetworkProxy::HttpProxy);
+        }
+        proxy.setHostName(proxyUrl.host());
+        proxy.setPort(proxyUrl.port(1080));
+        if (!proxyUrl.userName().isEmpty())
+            proxy.setUser(proxyUrl.userName());
+        if (!proxyUrl.password().isEmpty())
+            proxy.setPassword(proxyUrl.password());
+        QNetworkProxy::setApplicationProxy(proxy);
+    }
+
+    // Enable TLS 1.3
+    QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+    sslConfig.setProtocol(QSsl::TlsV1_3OrLater);
+    QSslConfiguration::setDefaultConfiguration(sslConfig);
 }
 
-MatrixSession* Application::matrixSession() const
+void Application::setupProtocolSupport()
 {
-    auto *session = ProtocolManager::instance().getSession(ProtocolType::MATRIX);
-    return qobject_cast<MatrixSession*>(session);
+    m_protocolManager = std::make_unique<ProtocolManager>(m_networkManager.get());
+    m_protocolManager->initialize();
 }
 
-IrcSessionHolder* Application::ircSessionHolder() const
+void Application::setupSystrayIntegration()
 {
-    return IrcSessionHolder::instance();
+    m_mainWindow->setupSystemTray(m_notificationManager.get());
 }
 
-LemmySessionHolder* Application::lemmySessionHolder() const
+void Application::loadSavedSessions()
 {
-    return LemmySessionHolder::instance();
+    const QString sessionFile = m_configDir + "/sessions.json";
+    QFile file(sessionFile);
+    if (!file.open(QIODevice::ReadOnly)) return;
+
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isArray()) return;
+
+    QJsonArray sessions = doc.array();
+    for (const QJsonValue &val : sessions) {
+        QJsonObject obj = val.toObject();
+        QString type = obj["type"].toString();
+        QString userId = obj["user_id"].toString();
+        QString server = obj["server"].toString();
+        QString token = obj["access_token"].toString();
+
+        if (!token.isEmpty()) {
+            m_protocolManager->restoreSession(type, userId, server, token);
+        }
+    }
 }
 
-void Application::addIrcSession()
+void Application::registerGlobalShortcuts()
 {
-    // Placeholder - IRC session creation would go here
+    // Ctrl+Shift+L — show log viewer
+    // Ctrl+Shift+D — debug console
+    // Ctrl+K — command palette (handled in MainWindow)
 }
 
-void Application::addLemmySession()
+ProtocolManager *Application::protocolManager() const
 {
-    // Placeholder - Lemmy session creation would go here
+    return m_protocolManager.get();
 }
 
-} // namespace progressive
+} // namespace progressive_chat

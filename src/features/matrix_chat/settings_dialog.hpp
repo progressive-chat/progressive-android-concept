@@ -1,81 +1,85 @@
 #pragma once
 
 #include <QDialog>
+#include <QTabWidget>
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QPushButton>
+#include <QSpinBox>
+#include <QListWidget>
+#include <QFormLayout>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGroupBox>
+#include <QLabel>
 
-class QTabWidget;
-class QComboBox;
-class QCheckBox;
-class QSlider;
-class QSpinBox;
-class QGroupBox;
-class QLineEdit;
-class QTextEdit;
-class QTimeEdit;
-class QDialogButtonBox;
-class QLabel;
+namespace progressive_chat {
+
+class ProtocolManager;
 
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit SettingsDialog(QWidget *parent = nullptr);
-    ~SettingsDialog() override;
-
-signals:
-    void settingsChanged();
-
-private slots:
-    void onAccepted();
-    void onApplied();
+    explicit SettingsDialog(ProtocolManager *manager, QWidget *parent = nullptr);
 
 private:
-    void setupUi();
+    void setupGeneralTab();
+    void setupNotificationsTab();
+    void setupNetworkTab();
+    void setupAppearanceTab();
+    void setupEncryptionTab();
+    void setupAdvancedTab();
     void loadSettings();
     void saveSettings();
+    void applySettings();
 
-    QWidget *createGeneralTab();
-    QWidget *createAppearanceTab();
-    QWidget *createNetworkTab();
-    QWidget *createNotificationsTab();
-    QWidget *createAboutTab();
-
+    ProtocolManager *m_protocolManager;
     QTabWidget *m_tabWidget;
-    QDialogButtonBox *m_buttonBox;
 
-    // General
-    QComboBox *m_languageCombo;
-    QCheckBox *m_startMinimizedCheck;
-    QCheckBox *m_closeToTrayCheck;
-    QCheckBox *m_autoConnectCheck;
+    // General settings
+    QCheckBox *m_autoStart;
+    QCheckBox *m_minimizeToTray;
+    QCheckBox *m_showReadReceipts;
+    QComboBox *m_languageSelector;
 
-    // Appearance
-    QComboBox *m_themeCombo;
-    QSlider *m_fontSizeSlider;
-    QLabel *m_fontSizeLabel;
-    QComboBox *m_bubbleStyleCombo;
-    QCheckBox *m_showAvatarsCheck;
-    QCheckBox *m_showTimestampsCheck;
+    // Notification settings
+    QCheckBox *m_enableNotifications;
+    QCheckBox *m_enableSounds;
+    QCheckBox *m_showMessagePreviews;
+    QComboBox *m_notificationStyle;
+    QSpinBox *m_notificationDuration;
 
-    // Network
-    QComboBox *m_proxyTypeCombo;
-    QLineEdit *m_proxyHostEdit;
-    QSpinBox *m_proxyPortSpin;
-    QLineEdit *m_proxyUserEdit;
-    QLineEdit *m_proxyPasswordEdit;
-    QGroupBox *m_proxyGroup;
-    QSpinBox *m_timeoutSpin;
-    QCheckBox *m_yggdrasilCheck;
-    QCheckBox *m_i2pCheck;
+    // Network settings
+    QLineEdit *m_proxyHost;
+    QSpinBox *m_proxyPort;
+    QComboBox *m_proxyType;
+    QCheckBox *m_proxyEnabled;
+    QSpinBox *m_connectionTimeout;
+    QCheckBox *m_useTor;
 
-    // Notifications
-    QCheckBox *m_enableNotificationsCheck;
-    QCheckBox *m_showPreviewCheck;
-    QCheckBox *m_soundCheck;
-    QCheckBox *m_matrixNotifyCheck;
-    QCheckBox *m_ircNotifyCheck;
-    QCheckBox *m_lemmyNotifyCheck;
-    QTextEdit *m_keywordsEdit;
-    QTimeEdit *m_quietFromEdit;
-    QTimeEdit *m_quietToEdit;
+    // Appearance settings
+    QComboBox *m_themeSelector;
+    QComboBox *m_fontFamily;
+    QSpinBox *m_fontSize;
+    QComboBox *m_messageStyle;
+    QCheckBox *m_compactMode;
+    QCheckBox *m_showAvatars;
+    QCheckBox *m_animateEmoji;
+
+    // Encryption settings
+    QCheckBox *m_encryptionEnabled;
+    QCheckBox *m_autoAcceptKeyRequests;
+    QCheckBox *m_autoBackupKeys;
+    QLineEdit *m_backupPassphrase;
+
+    // Advanced
+    QCheckBox *m_developerMode;
+    QCheckBox *m_enableDebugLogging;
+    QCheckBox *m_sendCrashReports;
+    QSpinBox *m_maxCacheSize;
 };
+
+} // namespace progressive_chat

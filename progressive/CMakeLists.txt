@@ -1,9 +1,46 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22.0)
+project(progressive_native VERSION 1.0.0 LANGUAGES CXX)
 
-add_library(progressive_native STATIC progressive_stubs.cpp)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(progressive_native PUBLIC include)
+file(GLOB_RECURSE PROGRESSIVE_SOURCES "src/*.cpp")
+file(GLOB_RECURSE PROGRESSIVE_HEADERS "include/*.hpp" "include/*.h")
 
-target_compile_features(progressive_native PUBLIC cxx_std_20)
+add_library(progressive STATIC ${PROGRESSIVE_SOURCES} ${PROGRESSIVE_HEADERS})
 
-target_link_libraries(progressive_native PUBLIC olm Threads::Threads)
+target_include_directories(progressive
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(progressive
+    PUBLIC
+        olm
+        Qt6::Core
+        Qt6::Network
+        Qt6::Sql
+        Qt6::Concurrent
+)
+
+if(UNIX)
+    target_link_libraries(progressive PRIVATE pthread)
+endif()
+
+# Platform defines
+if(ANDROID)
+    target_compile_definitions(progressive PRIVATE PROGRESSIVE_ANDROID)
+elseif(APPLE)
+    target_compile_definitions(progressive PRIVATE PROGRESSIVE_APPLE)
+elseif(WIN32)
+    target_compile_definitions(progressive PRIVATE PROGRESSIVE_WINDOWS)
+elseif(UNIX)
+    target_compile_definitions(progressive PRIVATE PROGRESSIVE_LINUX)
+endif()
+
+# Remove JNI bridge on non-Android platforms
+if(NOT ANDROID)
+    set_property(TARGET progressive PROPERTY JNI_EXCLUDES TRUE)
+endif()

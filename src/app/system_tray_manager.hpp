@@ -1,75 +1,41 @@
 #pragma once
 
-#include <QMap>
 #include <QObject>
 #include <QSystemTrayIcon>
-#include <QIcon>
+#include <QMenu>
+#include <QString>
 
-class QAction;
-class QMenu;
-class QWidget;
+namespace progressive_chat {
 
-class SystemTrayManager : public QObject {
+class NotificationManager;
+
+class SystemTrayManager : public QObject
+{
     Q_OBJECT
 
 public:
-    enum class ProtocolType {
-        Matrix,
-        IRC,
-        Lemmy
-    };
-    Q_ENUM(ProtocolType)
-
-    static SystemTrayManager* instance();
-
-    void setWindow(QWidget* window);
-    void setConnected(bool connected, ProtocolType protocol);
-    void setUnreadCount(int count);
-    void showBalloon(const QString& title, const QString& message);
-
-signals:
-    void showWindowRequested();
-    void hideWindowRequested();
-    void quitRequested();
-
-private slots:
-    void onActivated(QSystemTrayIcon::ActivationReason reason);
-    void onShowHideWindow();
-
-private:
-    explicit SystemTrayManager(QObject* parent = nullptr);
+    explicit SystemTrayManager(QObject *parent, NotificationManager *notifManager);
     ~SystemTrayManager() override;
 
-    SystemTrayManager(const SystemTrayManager&) = delete;
-    SystemTrayManager& operator=(const SystemTrayManager&) = delete;
+    void initialize();
+    bool isVisible() const;
+    void showMessage(const QString &title, const QString &message);
+    void updateUnreadBadge(int count);
+    void toggleMuteNotifications();
 
-    static SystemTrayManager* s_instance;
+signals:
+    void showMainWindow();
+    void quitRequested();
+    void notificationMuteToggled(bool muted);
 
-    bool eventFilter(QObject* obj, QEvent* event) override;
+private:
+    void setupMenu();
+    void setupIcon();
 
-    void createTrayIcon();
-    void createContextMenu();
-    QIcon generateTrayIcon() const;
-    static QIcon generateDotIcon(const QColor& color);
-
-    void updateShowHideAction();
-    void updateStatusTexts();
-    void updateUnreadAction();
-    void updateOverallStatus();
-
-    QSystemTrayIcon* m_trayIcon = nullptr;
-    QMenu* m_menu = nullptr;
-    QWidget* m_window = nullptr;
-
-    QAction* m_showHideAction = nullptr;
-    QAction* m_statusAction = nullptr;
-    QMenu* m_protocolMenu = nullptr;
-    QMap<ProtocolType, QAction*> m_protocolActions;
-    QAction* m_unreadAction = nullptr;
-    QAction* m_settingsAction = nullptr;
-    QAction* m_quitAction = nullptr;
-
-    QMap<ProtocolType, bool> m_protocolStatus;
-    int m_unreadCount = 0;
-    bool m_trayAvailable = false;
+    QSystemTrayIcon *m_trayIcon = nullptr;
+    QMenu *m_trayMenu = nullptr;
+    NotificationManager *m_notificationManager = nullptr;
+    bool m_muted = false;
 };
+
+} // namespace progressive_chat

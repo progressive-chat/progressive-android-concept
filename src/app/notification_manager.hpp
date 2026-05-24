@@ -1,67 +1,48 @@
 #pragma once
 
 #include <QObject>
-#include <QSystemTrayIcon>
-#include <QMap>
-#include <QVector>
-#include <QPair>
-#include <QTime>
 #include <QString>
-#include <QStringList>
+#include <QHash>
+#include <memory>
 
-#include "protocol/protocol_type.hpp"
-
-struct ProtocolMessage;
+namespace progressive_chat {
 
 class NotificationManager : public QObject
 {
     Q_OBJECT
 
 public:
-    static NotificationManager& instance();
+    explicit NotificationManager(QObject *parent = nullptr);
+    ~NotificationManager() override;
 
-    void showNotification(const QString& title, const QString& body,
-                          const QString& roomId = QString(),
-                          ProtocolType type = ProtocolType::MATRIX);
-    void showMessageNotification(const ProtocolMessage& msg);
+    enum class Priority { Low, Normal, High, Critical };
 
-    bool isQuietHours(const QTime& currentTime) const;
-    bool matchesKeywords(const QString& text) const;
-
+    void showNotification(const QString &title, const QString &body,
+                          const QString &roomId = "", Priority priority = Priority::Normal);
+    void showMessageNotification(const QString &sender, const QString &message,
+                                  const QString &roomId, Priority priority = Priority::Normal);
+    void clearRoomNotifications(const QString &roomId);
+    void clearAllNotifications();
     int unreadCount() const;
-    int unreadCount(ProtocolType type) const;
 
-    void markRoomRead(const QString& roomId);
-    void incrementUnread(const QString& roomId);
-
-    QMap<QString, int> roomUnreadCounts() const;
-    QVector<QPair<QString, QString>> notificationHistory() const;
-
-    void loadSettings();
-    void saveSettings();
+    void setEnabled(bool enabled);
+    void setSoundEnabled(bool enabled);
 
 signals:
-    void unreadCountChanged(int total);
-    void notificationReceived(const QString& title, const QString& body,
-                              const QString& roomId);
+    void notificationClicked(const QString &roomId);
+    void notificationDismissed(const QString &roomId);
+    void unreadCountChanged(int count);
 
 private:
-    NotificationManager(QObject* parent = nullptr);
-    ~NotificationManager() override;
-    Q_DISABLE_COPY(NotificationManager)
+    struct ActiveNotification {
+        QString roomId;
+        uint id = 0;
+    };
 
-    int computeTotalUnread() const;
-
-    QSystemTrayIcon* m_trayIcon = nullptr;
-
-    QMap<QString, int> m_roomUnreadCounts;
-    QMap<QString, ProtocolType> m_roomProtocolMap;
-
-    QVector<QPair<QString, QString>> m_notificationHistory;
-    static constexpr int kMaxNotificationHistory = 100;
-
-    bool m_notificationsEnabled = true;
-    QTime m_quietHoursStart;
-    QTime m_quietHoursEnd;
-    QStringList m_keywords;
+    QHash<QString, ActiveNotification> m_activeNotifications;
+    bool m_enabled = true;
+    bool m_soundEnabled = true;
+    int m_totalUnread = 0;
 };
+
+} // namespace progressive_chat

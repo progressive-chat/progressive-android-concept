@@ -1,290 +1,200 @@
 #include "matrix_sync_manager.hpp"
+#include "matrix_session.hpp"
 
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QUrlQuery>
-#include <algorithm>
+#include <QCryptographicHash>
+#include <QDebug>
 
-MatrixSyncManager::MatrixSyncManager(MatrixSession& session, QObject* parent)
+namespace progressive_chat {
+
+MatrixSyncManager::MatrixSyncManager(MatrixSession *session, QObject *parent)
     : QObject(parent)
     , m_session(session)
-    , m_nam(new QNetworkAccessManager(this))
-    , m_syncTimer(new QTimer(this))
-    , m_retryDelayMs(0)
-    , m_currentBackoffMs(1000)
-    , m_running(false)
-    , m_currentReply(nullptr)
+    , m_network(session->findChild<QNetworkAccessManager *>())
 {
-    m_syncTimer->setSingleShot(true);
-    connect(m_syncTimer, &QTimer::timeout, this, &MatrixSyncManager::onSyncTimerFired);
 }
 
 MatrixSyncManager::~MatrixSyncManager()
 {
-    m_running = false;
-    m_syncTimer->stop();
-    if (m_currentReply) {
-        m_currentReply->abort();
-        m_currentReply->deleteLater();
-        m_currentReply = nullptr;
-    }
+    stop();
 }
 
-void MatrixSyncManager::startSync()
+void MatrixSyncManager::start()
 {
-    if (m_running) {
+    if (m_syncing) return;
+
+    m_initialSync = true;
+    m_consecutiveErrors = 0;
+
+    QObject::connect(&m_syncTimer, &QTimer::timeout, this, &MatrixSyncManager::processSync);
+    processSync();
+}
+
+void MatrixSyncManager::stop()
+{
+    m_syncTimer.stop();
+    m_retryTimer.stop();
+    m_syncing = false;
+    m_state = SyncState::Idle;
+    emit syncStateChanged(m_state);
+}
+
+void MatrixSyncManager::forceSync()
+{
+    if (m_syncTimer.isActive())
+        m_syncTimer.stop();
+    processSync();
+}
+
+void MatrixSyncManager::processSync()
+{
+    if (!m_session || !m_session->isConnected())
         return;
-    }
-    if (m_homeserverUrl.isEmpty() || m_accessToken.isEmpty()) {
-        return;
-    }
-    m_running = true;
-    resetBackoff();
-    doSync();
-}
 
-void MatrixSyncManager::stopSync()
-{
-    m_running = false;
-    m_syncTimer->stop();
-    if (m_currentReply) {
-        m_currentReply->abort();
-        m_currentReply->deleteLater();
-        m_currentReply = nullptr;
-    }
-}
+    m_syncing = true;
+    m_state = SyncState::Syncing;
+    emit syncStateChanged(m_state);
 
-void MatrixSyncManager::setHomeserverUrl(const QString& url)
-{
-    m_homeserverUrl = url;
-    while (m_homeserverUrl.endsWith('/')) {
-        m_homeserverUrl.chop(1);
-    }
-}
-
-void MatrixSyncManager::setAccessToken(const QString& token)
-{
-    m_accessToken = token;
-}
-
-QString MatrixSyncManager::nextBatch() const
-{
-    return m_nextBatch;
-}
-
-void MatrixSyncManager::onSyncTimerFired()
-{
-    doSync();
-}
-
-void MatrixSyncManager::doSync()
-{
-    if (!m_running) {
-        return;
-    }
-    if (m_homeserverUrl.isEmpty() || m_accessToken.isEmpty()) {
-        return;
+    if (!m_network) {
+        m_network = m_session->findChild<QNetworkAccessManager *>();
+        if (!m_network) {
+            handleSyncError(500, "No network manager");
+            return;
+        }
     }
 
-    QUrl url(m_homeserverUrl + "/_matrix/client/v3/sync");
+    QString homeserver = m_session->homeserver();
+    QUrl url(homeserver + "/_matrix/client/v3/sync");
     QUrlQuery query;
-    query.addQueryItem("timeout", QStringLiteral("30000"));
 
     if (!m_nextBatch.isEmpty()) {
         query.addQueryItem("since", m_nextBatch);
     }
 
-    QJsonObject filterObj = buildSyncFilter();
-    QJsonDocument filterDoc(filterObj);
-    QString filterJson = QString::fromUtf8(filterDoc.toJson(QJsonDocument::Compact));
-    query.addQueryItem("filter", filterJson);
+    // Set sync filter
+    if (m_initialSync) {
+        query.addQueryItem("full_state", "true");
+    }
 
+    query.addQueryItem("timeout", QString::number(m_syncTimeoutMs));
     url.setQuery(query);
 
-    QNetworkRequest req(url);
-    req.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
-    req.setRawHeader("Content-Type", "application/json");
-    req.setTransferTimeout(90000);
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization",
+                         ("Bearer " + m_session->accessToken()).toUtf8());
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setTransferTimeout(m_syncTimeoutMs + 15000);
 
-    m_currentReply = m_nam->get(req);
-    connect(m_currentReply, &QNetworkReply::finished, this, &MatrixSyncManager::onSyncReplyFinished);
+    auto *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            handleSyncResponse(reply->readAll());
+        } else {
+            int statusCode = reply->attribute(
+                QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            handleSyncError(statusCode, reply->errorString());
+        }
+        reply->deleteLater();
+    });
 }
 
-void MatrixSyncManager::onSyncReplyFinished()
+void MatrixSyncManager::handleSyncResponse(const QByteArray &response)
 {
-    auto reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) {
-        return;
-    }
-    reply->deleteLater();
+    m_syncing = false;
+    m_consecutiveErrors = 0;
 
-    if (!m_running) {
-        m_currentReply = nullptr;
-        return;
-    }
-
-    m_currentReply = nullptr;
-
-    if (reply->error() != QNetworkReply::NoError) {
-        scheduleRetry();
-        return;
-    }
-
-    QByteArray data = reply->readAll();
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-
-    if (parseError.error != QJsonParseError::NoError) {
-        scheduleRetry();
+    QJsonDocument doc = QJsonDocument::fromJson(response);
+    if (!doc.isObject()) {
+        handleSyncError(500, "Invalid sync response");
         return;
     }
 
-    QJsonObject response = doc.object();
-    processSyncResponse(response);
-    resetBackoff();
+    QJsonObject obj = doc.object();
+    QString prevBatch = m_nextBatch;
+    m_nextBatch = obj["next_batch"].toString();
 
-    if (m_running) {
-        m_syncTimer->start(0);
+    // Process room data
+    if (obj.contains("rooms")) {
+        QJsonObject rooms = obj["rooms"].toObject();
+        emit roomsUpdated(rooms);
+    }
+
+    // Process presence
+    if (obj.contains("presence")) {
+        emit presenceUpdated(obj["presence"].toObject());
+    }
+
+    // Process account data
+    if (obj.contains("account_data")) {
+        emit accountDataUpdated(obj["account_data"].toObject());
+    }
+
+    m_initialSync = false;
+    m_state = SyncState::Idle;
+    emit syncStateChanged(m_state);
+    emit syncCompleted(m_nextBatch);
+
+    // Schedule next sync
+    scheduleNextSync();
+}
+
+void MatrixSyncManager::handleSyncError(int statusCode, const QString &error)
+{
+    m_syncing = false;
+    m_consecutiveErrors++;
+
+    QString errorMsg = QString("Sync error (HTTP %1): %2").arg(statusCode).arg(error);
+    qWarning() << errorMsg;
+
+    m_state = SyncState::Error;
+    emit syncStateChanged(m_state);
+
+    // Determine retry delay
+    int retryAfter = 1000; // Default 1 second
+
+    if (statusCode == 401 || statusCode == 403) {
+        // Auth failure - stop syncing
+        m_state = SyncState::Error;
+        emit syncError("Authentication failed", 0);
+        stop();
+        return;
+    }
+
+    if (statusCode == 429) {
+        retryAfter = 5000; // Rate limited
+    } else if (m_consecutiveErrors > 5) {
+        retryAfter = 30000; // Exponential backoff
+    } else if (m_consecutiveErrors > 3) {
+        retryAfter = 10000;
+    } else {
+        retryAfter = 5000;
+    }
+
+    m_state = SyncState::Retrying;
+    emit syncStateChanged(m_state);
+    emit syncError(errorMsg, retryAfter);
+
+    scheduleRetry(retryAfter);
+}
+
+void MatrixSyncManager::scheduleNextSync()
+{
+    if (!m_syncTimer.isActive()) {
+        m_syncTimer.start(30000);
     }
 }
 
-void MatrixSyncManager::processSyncResponse(const QJsonObject& response)
+void MatrixSyncManager::scheduleRetry(int retryAfterMs)
 {
-    m_nextBatch = response.value("next_batch").toString();
-
-    QJsonObject rooms = response.value("rooms").toObject();
-    processJoinedRooms(rooms.value("join").toObject());
-    processInvitedRooms(rooms.value("invite").toObject());
-    processLeftRooms(rooms.value("leave").toObject());
-
-    QJsonObject accountData = response.value("account_data").toObject();
-    processAccountData(accountData.value("events").toArray());
-
-    QJsonObject presence = response.value("presence").toObject();
-    processPresence(presence.value("events").toArray());
-
-    QJsonObject toDevice = response.value("to_device").toObject();
-    processToDevice(toDevice);
+    m_syncTimer.stop();
+    QTimer::singleShot(retryAfterMs, this, &MatrixSyncManager::processSync);
 }
 
-void MatrixSyncManager::processJoinedRooms(const QJsonObject& rooms)
-{
-    for (auto it = rooms.begin(); it != rooms.end(); ++it) {
-        const QString roomId = it.key();
-        QJsonObject roomData = it.value().toObject();
-
-        emit roomJoined(roomId, roomData);
-
-        QJsonObject timeline = roomData.value("timeline").toObject();
-        QJsonArray events = timeline.value("events").toArray();
-        for (const auto& ev : events) {
-            QJsonObject event = ev.toObject();
-            emit messageReceived(roomId, event);
-        }
-    }
-}
-
-void MatrixSyncManager::processInvitedRooms(const QJsonObject& rooms)
-{
-    for (auto it = rooms.begin(); it != rooms.end(); ++it) {
-        const QString roomId = it.key();
-        QJsonObject inviteData = it.value().toObject();
-        emit roomInvited(roomId, inviteData);
-    }
-}
-
-void MatrixSyncManager::processLeftRooms(const QJsonObject& rooms)
-{
-    for (auto it = rooms.begin(); it != rooms.end(); ++it) {
-        const QString roomId = it.key();
-        QJsonObject roomData = it.value().toObject();
-
-        QJsonObject timeline = roomData.value("timeline").toObject();
-        QJsonArray events = timeline.value("events").toArray();
-        for (const auto& ev : events) {
-            QJsonObject event = ev.toObject();
-            emit messageReceived(roomId, event);
-        }
-    }
-}
-
-void MatrixSyncManager::processAccountData(const QJsonArray& events)
-{
-    for (const auto& ev : events) {
-        QJsonObject event = ev.toObject();
-        QString type = event.value("type").toString();
-        if (type == "m.direct" || type == "m.push_rules") {
-            emit messageReceived(QString(), event);
-        }
-    }
-}
-
-void MatrixSyncManager::processPresence(const QJsonArray& events)
-{
-    for (const auto& ev : events) {
-        QJsonObject event = ev.toObject();
-        QString userId = event.value("sender").toString();
-        if (userId.isEmpty()) {
-            userId = event.value("content").toObject().value("user_id").toString();
-        }
-        emit presenceChanged(userId, event);
-    }
-}
-
-void MatrixSyncManager::processToDevice(const QJsonObject& toDevice)
-{
-    QJsonArray events = toDevice.value("events").toArray();
-    for (const auto& ev : events) {
-        QJsonObject event = ev.toObject();
-        QString type = event.value("type").toString();
-        emit deviceMessageReceived(type, event);
-    }
-}
-
-void MatrixSyncManager::scheduleRetry()
-{
-    m_currentBackoffMs = std::min(m_currentBackoffMs * 2, 60000);
-    if (m_currentBackoffMs < 1000) {
-        m_currentBackoffMs = 1000;
-    }
-    m_syncTimer->start(m_currentBackoffMs);
-}
-
-void MatrixSyncManager::resetBackoff()
-{
-    m_currentBackoffMs = 1000;
-}
-
-QJsonObject MatrixSyncManager::buildSyncFilter() const
-{
-    QJsonObject filter;
-
-    QJsonObject roomFilter;
-    QJsonObject timelineFilter;
-    timelineFilter["lazy_load_members"] = true;
-    roomFilter["timeline"] = timelineFilter;
-
-    QJsonObject stateFilter;
-    stateFilter["lazy_load_members"] = true;
-    roomFilter["state"] = stateFilter;
-
-    QJsonObject ephemeralFilter;
-    ephemeralFilter["types"] = QJsonArray{"m.receipt", "m.typing"};
-    roomFilter["ephemeral"] = ephemeralFilter;
-
-    filter["room"] = roomFilter;
-
-    QJsonObject accountDataFilter;
-    accountDataFilter["types"] = QJsonArray{"m.direct", "m.push_rules"};
-    filter["account_data"] = accountDataFilter;
-
-    QJsonObject presenceFilter;
-    presenceFilter["types"] = QJsonArray{"m.presence"};
-    filter["presence"] = presenceFilter;
-
-    return filter;
-}
+} // namespace progressive_chat

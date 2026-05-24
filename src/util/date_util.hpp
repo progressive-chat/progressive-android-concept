@@ -1,71 +1,63 @@
 #pragma once
 
-#include <QString>
 #include <QDateTime>
+#include <QString>
 #include <QDate>
 #include <QTime>
 
-namespace DateUtil {
+namespace progressive_chat {
+namespace util {
 
-inline QString relativeTime(const QDateTime &dt)
+inline QString formatTimestamp(const QDateTime &dt)
 {
-    QDateTime now = QDateTime::currentDateTimeUtc();
-    qint64 secs = dt.secsTo(now);
+    if (!dt.isValid()) return "";
 
-    if (secs < 0)
-        return "in the future";
-    if (secs < 60)
-        return "just now";
-    if (secs < 3600) {
-        int mins = static_cast<int>(secs / 60);
-        return QString::number(mins) + "m ago";
-    }
-    if (secs < 86400) {
-        int hours = static_cast<int>(secs / 3600);
-        return QString::number(hours) + "h ago";
-    }
-    if (secs < 172800) {
-        return "yesterday";
-    }
-    if (secs < 604800) {
-        int days = static_cast<int>(secs / 86400);
-        return QString::number(days) + "d ago";
-    }
-    return dt.toLocalTime().toString("MMM d");
-}
-
-inline QString formatTimestamp(qint64 ms)
-{
-    QDateTime dt = QDateTime::fromMSecsSinceEpoch(ms, Qt::UTC);
-    return dt.toLocalTime().toString("MMM d, yyyy  hh:mm AP");
-}
-
-inline QString formatDate(const QDate &d)
-{
-    return d.toString("MMM d, yyyy");
-}
-
-inline QString formatTime(const QTime &t)
-{
-    return t.toString("hh:mm");
-}
-
-inline bool isToday(const QDate &d)
-{
-    return d == QDate::currentDate();
-}
-
-inline bool isYesterday(const QDate &d)
-{
-    return d == QDate::currentDate().addDays(-1);
-}
-
-inline bool isThisWeek(const QDate &d)
-{
     QDate today = QDate::currentDate();
-    int dayOfWeek = today.dayOfWeek();
-    QDate startOfWeek = today.addDays(-(dayOfWeek - 1));
-    return d >= startOfWeek && d <= today;
+    QDate date = dt.date();
+
+    if (date == today)
+        return dt.toString("HH:mm");
+    else if (date == today.addDays(-1))
+        return "Yesterday " + dt.toString("HH:mm");
+    else if (date.year() == today.year())
+        return dt.toString("MMM d, HH:mm");
+    else
+        return dt.toString("MMM d yyyy, HH:mm");
 }
 
-} // namespace DateUtil
+inline QString formatRelativeTime(const QDateTime &dt)
+{
+    if (!dt.isValid()) return "";
+
+    qint64 secs = dt.secsTo(QDateTime::currentDateTime());
+
+    if (secs < 0) return "just now";
+    if (secs < 60) return QString("%1s ago").arg(secs);
+    if (secs < 3600) return QString("%1m ago").arg(secs / 60);
+    if (secs < 86400) return QString("%1h ago").arg(secs / 3600);
+    if (secs < 604800) return QString("%1d ago").arg(secs / 86400);
+    if (secs < 2592000) return QString("%1w ago").arg(secs / 604800);
+
+    return formatTimestamp(dt);
+}
+
+inline QString formatDuration(qint64 milliseconds)
+{
+    int totalSeconds = milliseconds / 1000;
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    if (hours > 0)
+        return QString("%1:%2:%3").arg(hours).arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
+    return QString("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
+}
+
+inline QString formatDate(const QDate &date)
+{
+    if (!date.isValid()) return "";
+    return date.toString("yyyy-MM-dd");
+}
+
+} // namespace util
+} // namespace progressive_chat

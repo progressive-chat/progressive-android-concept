@@ -1,21 +1,52 @@
 #pragma once
 
-#include <QString>
-#include <QJsonObject>
 #include "protocol_type.hpp"
+#include "protocol_message.hpp"
+#include <QString>
+#include <QDateTime>
+#include <QStringList>
+#include <QVariantMap>
+
+namespace progressive_chat {
+
+enum class RoomType {
+    Direct,
+    Group,
+    Space,
+    Channel,
+    Community,
+    Unknown
+};
 
 struct ProtocolRoom {
     QString id;
+    ProtocolType protocol = ProtocolType::Unknown;
+    RoomType type = RoomType::Unknown;
     QString name;
     QString topic;
     QString avatarUrl;
-    int unreadCount = 0;
+    QString canonicalAlias;
+    QStringList aliases;
+    QStringList memberIds;
     int memberCount = 0;
-    bool isDirect = false;
+    int unreadCount = 0;
+    int highlightCount = 0;
     bool isEncrypted = false;
-    bool isPublic = false;
-    qint64 lastMessageTimestamp = 0;
+    bool isDirect = false;
+    bool isFavorite = false;
+    bool isLowPriority = false;
+    bool hasUnread = false;
+    bool isMuted = false;
+    QDateTime lastActivity;
     QString lastMessagePreview;
-    ProtocolType protocolType = ProtocolType::MATRIX;
-    QJsonObject metadata;
+    QString lastMessageSender;
+    QVariantMap extra;
+
+    QString displayName() const {
+        return name.isEmpty() ? canonicalAlias : name;
+    }
+
+    bool isSpace() const { return type == RoomType::Space; }
 };
+
+} // namespace progressive_chat

@@ -2,95 +2,53 @@
 
 #include <QString>
 #include <QUrl>
-#include <QNetworkAccessManager>
 #include <QNetworkRequest>
-#include <QNetworkReply>
-#include <QEventLoop>
-#include <QTimer>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QRegularExpression>
 
-namespace NetworkUtil {
+namespace progressive_chat {
+namespace util {
 
-inline QString resolveWellKnown(const QString &homeserver)
+inline bool isValidUrl(const QString &url)
 {
-    QUrl url(homeserver + "/.well-known/matrix/client");
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkAccessManager manager;
-    QNetworkReply *reply = manager.get(request);
-
-    QEventLoop loop;
-    QTimer timer;
-    timer.setSingleShot(true);
-    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timer.start(10000);
-    loop.exec();
-
-    if (reply->error() != QNetworkReply::NoError) {
-        reply->deleteLater();
-        return QString();
-    }
-
-    QByteArray data = reply->readAll();
-    reply->deleteLater();
-
-    QJsonDocument doc = QJsonDocument::fromJson(data);
-    QJsonObject obj = doc.object();
-    QJsonObject homeserverObj = obj["m.homeserver"].toObject();
-    return homeserverObj["base_url"].toString();
+    QUrl parsed(url);
+    return parsed.isValid() && !parsed.scheme().isEmpty() && !parsed.host().isEmpty();
 }
 
-inline bool isReachable(const QString &urlStr, int timeoutMs = 5000)
+inline QString stripQueryAndFragment(const QString &url)
 {
-    QUrl url(urlStr);
-    QNetworkRequest request(url);
-
-    QNetworkAccessManager manager;
-    QNetworkReply *reply = manager.head(request);
-
-    QEventLoop loop;
-    QTimer timer;
-    timer.setSingleShot(true);
-    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timer.start(timeoutMs);
-    loop.exec();
-
-    bool reachable = (reply->error() == QNetworkReply::NoError ||
-                      reply->error() == QNetworkReply::ContentNotFoundError);
-    reply->deleteLater();
-    return reachable;
+    QUrl parsed(url);
+    parsed.setQuery(QString());
+    parsed.setFragment(QString());
+    return parsed.toString();
 }
 
-inline QString extractDomain(const QString &urlStr)
+inline QString extractFilenameFromUrl(const QString &url)
 {
-    QUrl url(urlStr);
-    QString host = url.host();
-    if (host.isEmpty())
-        return urlStr;
-    return host;
+    QUrl parsed(url);
+    QString path = parsed.path();
+    int lastSlash = path.lastIndexOf('/');
+    return lastSlash >= 0 ? path.mid(lastSlash + 1) : "file";
 }
 
-inline bool isValidMatrixId(const QString &id)
+inline bool isMxcUrl(const QString &url)
 {
-    QRegularExpression re("^@[\\w.=\\-\\/]+:[\\w.\\-]+(:\\d+)?$");
-    return re.match(id).hasMatch();
+    return url.startsWith("mxc://");
 }
 
-inline bool isValidRoomId(const QString &id)
+inline QPair<QString, QString> parseMxcUrl(const QString &url)
 {
-    QRegularExpression re("^![\\w.=\\-\\/]+:[\\w.\\-]+(:\\d+)?$");
-    return re.match(id).hasMatch();
+    // Returns {serverName, mediaId}
+    QString clean = url.mid(6); // Remove "mxc://"
+    int slash = clean.indexOf("/");
+    if (slash > 0)
+        return {clean.left(slash), clean.mid(slash + 1)};
+    return {clean, ""};
 }
 
-inline bool isValidRoomAlias(const QString &alias)
+inline QString mxcToHttp(const QString &mxcUrl, const QString &homeserver)
 {
-    QRegularExpression re("^#[\\w.=\\-\\/]+:[\\w.\\-]+(:\\d+)?$");
-    return re.match(alias).hasMatch();
+    auto [server, mediaId] = parseMxcUrl(mxcUrl);
+    return QString("%1/_matrix/media/v3/download/%2/%3").arg(homeserver, server, mediaId);
 }
 
-} // namespace NetworkUtil
+} // namespace util
+} // namespace progressive_chat

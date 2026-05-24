@@ -1,24 +1,25 @@
-enable_testing()
+cmake_minimum_required(VERSION 3.22.0)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Test)
 
-set(TEST_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/protocol/protocol_session.cpp
-    ${CMAKE_SOURCE_DIR}/src/protocol/protocol_manager.cpp
-    ${CMAKE_SOURCE_DIR}/src/util/json_util.cpp
-    ${CMAKE_SOURCE_DIR}/src/util/string_util.cpp
-)
+file(GLOB TEST_SOURCES "*.cpp")
 
-add_executable(progressive_tests test_main.cpp ${TEST_SOURCES})
+add_executable(progressive_tests ${TEST_SOURCES})
+
 target_include_directories(progressive_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/progressive/include
 )
 
-target_link_libraries(progressive_tests PRIVATE
-    Qt6::Test
-    Qt6::Network
-    Qt6::Core
+target_link_libraries(progressive_tests
+    PRIVATE
+        progressive
+        Qt6::Test
+        Qt6::Core
+        Qt6::Network
 )
 
 add_test(NAME progressive_tests COMMAND progressive_tests)

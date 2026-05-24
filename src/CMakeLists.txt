@@ -1,40 +1,57 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22.0)
 
-add_executable(progressive_android_concept main.cpp)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 file(GLOB_RECURSE APP_SOURCES
-    app/*.cpp
-    native/*.cpp
-    protocol/*.cpp
-    matrix/*.cpp
-    irc/*.cpp
-    lemmy/*.cpp
-    features/auth/*.cpp
-    features/home/*.cpp
-    features/irc/*.cpp
-    features/lemmy/*.cpp
-    features/matrix_chat/*.cpp
-    ui/components/*.cpp
-    ui/themes/*.cpp
-    util/*.cpp
+    "main.cpp"
+    "app/*.cpp"
+    "features/*/*.cpp"
+    "ui/components/*.cpp"
+    "ui/themes/*.cpp"
+    "matrix/*.cpp"
+    "irc/*.cpp"
+    "lemmy/*.cpp"
+    "protocol/*.cpp"
+    "native/*.cpp"
+    "util/*.cpp"
 )
 
-target_sources(progressive_android_concept PRIVATE ${APP_SOURCES})
-
-target_include_directories(progressive_android_concept PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/progressive/include
+file(GLOB_RECURSE APP_HEADERS
+    "app/*.hpp"
+    "features/*/*.hpp"
+    "ui/components/*.hpp"
+    "ui/themes/*.hpp"
+    "matrix/*.hpp"
+    "irc/*.hpp"
+    "lemmy/*.hpp"
+    "protocol/*.hpp"
+    "native/*.hpp"
+    "util/*.hpp"
 )
 
-target_link_libraries(progressive_android_concept PRIVATE
-    progressive_native
-    olm
-    Qt6::Widgets
-    Qt6::Network
-    Qt6::Sql
-    Qt6::Core
+add_executable(progressive_chat ${APP_SOURCES} ${APP_HEADERS})
+
+target_include_directories(progressive_chat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(progressive_chat
+    PRIVATE
+        progressive
+        Qt6::Widgets
+        Qt6::Network
+        Qt6::Sql
+        Qt6::Multimedia
+        Qt6::Svg
+        Qt6::Concurrent
+        Qt6::Core5Compat
 )
-if(TARGET Qt6::Multimedia)
-    target_link_libraries(progressive_android_concept PRIVATE Qt6::Multimedia)
-    target_compile_definitions(progressive_android_concept PRIVATE HAS_QT_MULTIMEDIA=1)
-endif()
+
+set_target_properties(progressive_chat PROPERTIES
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+)
+
+install(TARGETS progressive_chat DESTINATION bin)

@@ -1,19 +1,18 @@
 #pragma once
 
 #include <QWidget>
-#include <QVector>
-#include "protocol/protocol_message.hpp"
-#include "protocol/protocol_room.hpp"
-#include "protocol/protocol_type.hpp"
+#include <QTextBrowser>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QListWidget>
+#include <QSplitter>
 
-class QVBoxLayout;
-class QHBoxLayout;
-class QScrollArea;
-class QScrollBar;
-class QTextEdit;
-class QPushButton;
-class QLabel;
-class QTimer;
+namespace progressive_chat {
+
+class ProtocolManager;
 
 class ChatDetailWidget : public QWidget
 {
@@ -21,49 +20,46 @@ class ChatDetailWidget : public QWidget
 
 public:
     explicit ChatDetailWidget(QWidget *parent = nullptr);
-    ~ChatDetailWidget() override;
+    void setProtocolManager(ProtocolManager *manager);
+
+    bool hasActiveSearch() const;
+    void clearFocus();
 
 public slots:
-    void loadRoom(const ProtocolRoom &room);
-    void addMessage(const ProtocolMessage &msg);
+    void loadRoom(const QString &roomId);
+    void addMessage(const QString &sender, const QString &body,
+                    const QString &timestamp, bool isOwn = false);
+    void showSystemMessage(const QString &text);
+    void showTypingIndicator(const QString &userName);
+    void hideTypingIndicator();
+    void setRoomTopic(const QString &topic);
+    void setRoomName(const QString &name);
 
 signals:
-    void sendMessage(const QString &roomId, const QString &text, ProtocolContentType contentType);
-    void backRequested();
-
-private slots:
-    void onSendClicked();
-    void onEmojiClicked();
-    void onInputChanged();
-    void onTypingTimeout();
-    void onScrollChanged(int value);
-    void onLoadEarlierClicked();
+    void messageSent(const QString &roomId, const QString &body);
+    void fileAttachmentRequested();
+    void emojiPickerRequested();
+    void roomInfoRequested();
 
 private:
     void setupUi();
-    QWidget *createMessageBubble(const ProtocolMessage &msg);
-    void appendSystemMessage(const QString &text, qint64 timestamp);
-    void appendTimestampDivider(qint64 timestamp);
-    bool shouldShowTimestampDivider(qint64 current, qint64 previous) const;
-    QString formatTimestamp(qint64 timestamp) const;
-    QString initialsFromName(const QString &name) const;
-    QString avatarColorForSender(const QString &senderId) const;
-    QString simpleMarkdownToHtml(const QString &text) const;
-    void scrollToBottom();
-    bool isNearBottom() const;
+    void onSendClicked();
+    void onInputReturnPressed();
+    void onAttachmentClicked();
+    void onEmojiClicked();
+    void onRoomInfoClicked();
 
-    QScrollArea *m_scrollArea;
-    QWidget *m_messageContainer;
-    QVBoxLayout *m_messageLayout;
-    QPushButton *m_loadEarlierButton;
-    QLabel *m_typingIndicator;
-    QTextEdit *m_inputEdit;
-    QPushButton *m_sendButton;
-    QPushButton *m_emojiButton;
-    QTimer *m_typingTimer;
-
+    QLabel *m_roomNameLabel;
+    QLabel *m_roomTopicLabel;
+    QLabel *m_typingLabel;
+    QTextBrowser *m_messageView;
+    QLineEdit *m_messageInput;
+    QPushButton *m_sendBtn;
+    QPushButton *m_attachBtn;
+    QPushButton *m_emojiBtn;
+    QPushButton *m_infoBtn;
     QString m_currentRoomId;
-    ProtocolType m_protocolType;
-    QString m_currentUserId;
-    qint64 m_lastDisplayedTimestamp;
+    ProtocolManager *m_protocolManager = nullptr;
 };
+
+} // namespace progressive_chat

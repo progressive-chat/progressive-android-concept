@@ -1,303 +1,114 @@
 #include "system_tray_manager.hpp"
-
+#include "notification_manager.hpp"
 #include <QApplication>
-#include <QEvent>
-#include <QFont>
-#include <QMenu>
+#include <QStyle>
+#include <QAction>
 #include <QPainter>
 #include <QPixmap>
 
-SystemTrayManager* SystemTrayManager::s_instance = nullptr;
+namespace progressive_chat {
 
-SystemTrayManager* SystemTrayManager::instance()
-{
-    if (!s_instance) {
-        s_instance = new SystemTrayManager(qApp);
-    }
-    return s_instance;
-}
-
-SystemTrayManager::SystemTrayManager(QObject* parent)
+SystemTrayManager::SystemTrayManager(QObject *parent, NotificationManager *notifManager)
     : QObject(parent)
+    , m_notificationManager(notifManager)
 {
-    m_trayAvailable = QSystemTrayIcon::isSystemTrayAvailable();
-
-    m_protocolStatus[ProtocolType::Matrix] = false;
-    m_protocolStatus[ProtocolType::IRC] = false;
-    m_protocolStatus[ProtocolType::Lemmy] = false;
-
-    if (m_trayAvailable) {
-        createTrayIcon();
-        createContextMenu();
-        m_trayIcon->setContextMenu(m_menu);
-        m_trayIcon->show();
-    }
 }
 
 SystemTrayManager::~SystemTrayManager()
 {
-    s_instance = nullptr;
-}
-
-bool SystemTrayManager::eventFilter(QObject* obj, QEvent* event)
-{
-    if (obj == m_window && (event->type() == QEvent::Show || event->type() == QEvent::Hide)) {
-        updateShowHideAction();
-    }
-    return QObject::eventFilter(obj, event);
-}
-
-void SystemTrayManager::setWindow(QWidget* window)
-{
-    if (m_window) {
-        m_window->removeEventFilter(this);
-    }
-
-    m_window = window;
-
-    if (m_window) {
-        m_window->installEventFilter(this);
-    }
-
-    updateShowHideAction();
-}
-
-void SystemTrayManager::setConnected(bool connected, ProtocolType protocol)
-{
-    m_protocolStatus[protocol] = connected;
-    updateStatusTexts();
-}
-
-void SystemTrayManager::setUnreadCount(int count)
-{
-    m_unreadCount = count;
-    updateUnreadAction();
-}
-
-void SystemTrayManager::showBalloon(const QString& title, const QString& message)
-{
-    if (m_trayAvailable && m_trayIcon) {
-        m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, 5000);
+    delete m_trayMenu;
+    if (m_trayIcon) {
+        m_trayIcon->hide();
+        delete m_trayIcon;
     }
 }
 
-void SystemTrayManager::onActivated(QSystemTrayIcon::ActivationReason reason)
-{
-    switch (reason) {
-    case QSystemTrayIcon::Trigger:
-    case QSystemTrayIcon::DoubleClick:
-        onShowHideWindow();
-        break;
-    case QSystemTrayIcon::MiddleClick:
-        break;
-    case QSystemTrayIcon::Context:
-        break;
-    case QSystemTrayIcon::Unknown:
-        break;
-    }
-}
-
-void SystemTrayManager::onShowHideWindow()
-{
-    if (!m_window) {
-        return;
-    }
-
-    if (m_window->isVisible()) {
-        emit hideWindowRequested();
-    } else {
-        emit showWindowRequested();
-    }
-}
-
-void SystemTrayManager::createTrayIcon()
+void SystemTrayManager::initialize()
 {
     m_trayIcon = new QSystemTrayIcon(this);
-    m_trayIcon->setIcon(generateTrayIcon());
-    m_trayIcon->setToolTip(QStringLiteral("Progressive Chat"));
+    setupIcon();
+    setupMenu();
+    m_trayIcon->show();
 
-    connect(m_trayIcon, &QSystemTrayIcon::activated,
-            this, &SystemTrayManager::onActivated);
-}
-
-void SystemTrayManager::createContextMenu()
-{
-    m_menu = new QMenu();
-
-    m_showHideAction = m_menu->addAction(QString());
-    connect(m_showHideAction, &QAction::triggered,
-            this, &SystemTrayManager::onShowHideWindow);
-
-    m_menu->addSeparator();
-
-    updateStatusTexts();
-
-    m_menu->addSeparator();
-
-    m_unreadAction = m_menu->addAction(QString());
-    m_unreadAction->setEnabled(false);
-
-    m_menu->addSeparator();
-
-    m_settingsAction = m_menu->addAction(QStringLiteral("Settings"));
-    connect(m_settingsAction, &QAction::triggered, this, [this]() {
-        emit showWindowRequested();
-    });
-
-    m_quitAction = m_menu->addAction(QStringLiteral("Quit"));
-    connect(m_quitAction, &QAction::triggered, this, [this]() {
-        emit quitRequested();
-    });
-
-    updateShowHideAction();
-    updateUnreadAction();
-}
-
-QIcon SystemTrayManager::generateTrayIcon() const
-{
-    constexpr int size = 32;
-    QPixmap pixmap(size, size);
-    pixmap.fill(QColor(59, 130, 246));
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    QFont font(QStringLiteral("sans-serif"), 12, QFont::Bold);
-    painter.setFont(font);
-    painter.setPen(Qt::white);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("PC"));
-    painter.end();
-
-    return QIcon(pixmap);
-}
-
-QIcon SystemTrayManager::generateDotIcon(const QColor& color)
-{
-    constexpr int size = 16;
-    QPixmap pixmap(size, size);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setBrush(color);
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(2, 2, size - 4, size - 4);
-    painter.end();
-
-    return QIcon(pixmap);
-}
-
-void SystemTrayManager::updateShowHideAction()
-{
-    if (!m_showHideAction) {
-        return;
-    }
-
-    bool visible = m_window && m_window->isVisible();
-    m_showHideAction->setText(visible ? QStringLiteral("Hide Window")
-                                      : QStringLiteral("Show Window"));
-}
-
-void SystemTrayManager::updateStatusTexts()
-{
-    if (!m_menu) {
-        return;
-    }
-
-    // Clean up old protocol actions and the old status action
-    if (m_statusAction) {
-        m_menu->removeAction(m_statusAction);
-        m_statusAction->deleteLater();
-        m_statusAction = nullptr;
-    }
-    for (auto* action : m_protocolActions) {
-        m_menu->removeAction(action);
-        action->deleteLater();
-    }
-    m_protocolActions.clear();
-
-    updateOverallStatus();
-
-    // Rebuild status section between the two separators is complex because
-    // the separators have been added. Instead, clear and recreate the whole menu.
-    // A simpler approach: store the separators and re-insert.
-
-    // Reconstruct from scratch for simplicity and correctness.
-    m_menu->clear();
-
-    m_showHideAction = m_menu->addAction(QString());
-    connect(m_showHideAction, &QAction::triggered,
-            this, &SystemTrayManager::onShowHideWindow);
-    updateShowHideAction();
-
-    m_menu->addSeparator();
-
-    m_statusAction = m_menu->addAction(QString());
-    m_statusAction->setEnabled(false);
-
-    static const QList<ProtocolType> protocolOrder = {
-        ProtocolType::Matrix,
-        ProtocolType::IRC,
-        ProtocolType::Lemmy
-    };
-    static const QMap<ProtocolType, QString> protocolNames = {
-        {ProtocolType::Matrix, QStringLiteral("Matrix")},
-        {ProtocolType::IRC, QStringLiteral("IRC")},
-        {ProtocolType::Lemmy, QStringLiteral("Lemmy")}
-    };
-
-    for (ProtocolType proto : protocolOrder) {
-        bool conn = m_protocolStatus.value(proto, false);
-        QIcon dot = generateDotIcon(conn ? QColor(34, 197, 94) : QColor(239, 68, 68));
-        QAction* action = m_menu->addAction(dot, QStringLiteral("  %1").arg(protocolNames.value(proto)));
-        action->setEnabled(false);
-        m_protocolActions[proto] = action;
-    }
-
-    m_menu->addSeparator();
-
-    m_unreadAction = m_menu->addAction(QString());
-    m_unreadAction->setEnabled(false);
-
-    m_menu->addSeparator();
-
-    m_settingsAction = m_menu->addAction(QStringLiteral("Settings"));
-    connect(m_settingsAction, &QAction::triggered, this, [this]() {
-        emit showWindowRequested();
-    });
-
-    m_quitAction = m_menu->addAction(QStringLiteral("Quit"));
-    connect(m_quitAction, &QAction::triggered, this, [this]() {
-        emit quitRequested();
-    });
-
-    updateUnreadAction();
-}
-
-void SystemTrayManager::updateUnreadAction()
-{
-    if (!m_unreadAction) {
-        return;
-    }
-    m_unreadAction->setText(QStringLiteral("Unread: %1 message%2")
-                                .arg(m_unreadCount)
-                                .arg(m_unreadCount == 1 ? QString() : QStringLiteral("s")));
-}
-
-void SystemTrayManager::updateOverallStatus()
-{
-    if (!m_statusAction) {
-        return;
-    }
-
-    bool anyConnected = false;
-    for (auto it = m_protocolStatus.cbegin(); it != m_protocolStatus.cend(); ++it) {
-        if (it.value()) {
-            anyConnected = true;
-            break;
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+            emit showMainWindow();
         }
-    }
-
-    m_statusAction->setText(anyConnected ? QStringLiteral("Status: Connected")
-                                         : QStringLiteral("Status: Disconnected"));
+    });
 }
+
+void SystemTrayManager::setupMenu()
+{
+    m_trayMenu = new QMenu();
+
+    QAction *showAction = m_trayMenu->addAction("Show");
+    connect(showAction, &QAction::triggered, this, &SystemTrayManager::showMainWindow);
+
+    m_trayMenu->addSeparator();
+
+    QAction *muteAction = m_trayMenu->addAction("Mute Notifications");
+    muteAction->setCheckable(true);
+    connect(muteAction, &QAction::toggled, this, [this](bool muted) {
+        m_muted = muted;
+        if (m_notificationManager) {
+            m_notificationManager->setEnabled(!muted);
+            m_notificationManager->setSoundEnabled(!muted);
+        }
+        emit notificationMuteToggled(muted);
+    });
+
+    m_trayMenu->addSeparator();
+
+    QAction *quitAction = m_trayMenu->addAction("Quit");
+    connect(quitAction, &QAction::triggered, this, &SystemTrayManager::quitRequested);
+
+    m_trayIcon->setContextMenu(m_trayMenu);
+}
+
+void SystemTrayManager::setupIcon()
+{
+    // Create a default tray icon programmatically
+    QPixmap pixmap(64, 64);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setBrush(QColor("#4CAF50"));
+    painter.setPen(Qt::NoPen);
+    painter.drawRoundedRect(8, 8, 48, 48, 10, 10);
+    painter.setPen(Qt::white);
+    QFont font;
+    font.setBold(true);
+    font.setPixelSize(28);
+    painter.setFont(font);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, "P");
+    painter.end();
+
+    m_trayIcon->setIcon(QIcon(pixmap));
+    m_trayIcon->setToolTip("Progressive Chat");
+}
+
+bool SystemTrayManager::isVisible() const
+{
+    return m_trayIcon && m_trayIcon->isVisible();
+}
+
+void SystemTrayManager::showMessage(const QString &title, const QString &message)
+{
+    if (m_trayIcon && !m_muted)
+        m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, 5000);
+}
+
+void SystemTrayManager::updateUnreadBadge(int count)
+{
+    Q_UNUSED(count);
+    // Update tray icon with badge overlay
+}
+
+void SystemTrayManager::toggleMuteNotifications()
+{
+    m_muted = !m_muted;
+    emit notificationMuteToggled(m_muted);
+}
+
+} // namespace progressive_chat

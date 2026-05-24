@@ -1,69 +1,68 @@
 #pragma once
 
-#include <QHash>
-#include <QNetworkAccessManager>
+#include "../protocol/protocol_session.hpp"
+#include <QString>
 #include <QTimer>
-#include <QVector>
 
-#include "protocol/protocol_session.hpp"
+class QNetworkAccessManager;
 
-class QNetworkReply;
+namespace progressive_chat {
 
-class MatrixSession : public IProtocolSession {
+class MatrixSession : public ProtocolSession
+{
     Q_OBJECT
 
 public:
-    explicit MatrixSession(const QString &userId,
-                           const QString &accessToken,
-                           const QString &homeserverUrl,
-                           QObject *parent = nullptr);
+    explicit MatrixSession(QNetworkAccessManager *network, QObject *parent = nullptr);
     ~MatrixSession() override;
 
-    void open() override;
-    void close() override;
-    void sendMessage(const QString &roomId, const QString &text, ProtocolContentType contentType) override;
-    QVector<ProtocolRoom> getRooms() override;
-    QVector<ProtocolMessage> getMessages(const QString &roomId, int limit = 50) override;
-    void markAsRead(const QString &roomId) override;
-    void joinRoom(const QString &roomIdOrAlias) override;
-    void leaveRoom(const QString &roomId) override;
-    QVector<ProtocolRoom> searchRooms(const QString &query) override;
+    void setHomeserver(const QString &url);
+    void setAccessToken(const QString &token);
+    void setDeviceId(const QString &id);
 
-    ProtocolType protocolType() const override { return ProtocolType::MATRIX; }
-    ConnectionState connectionState() const override { return m_state; }
-    QString userId() const override { return m_userId; }
-    QString displayName() const override { return m_displayName; }
-
+    QString homeserver() const { return m_homeserver; }
     QString accessToken() const { return m_accessToken; }
-    QString homeserverUrl() const { return m_homeserverUrl; }
+
+    // ProtocolSession interface
+    void connect() override;
+    void disconnect() override;
+    void reconnect() override;
+
+    void sendMessage(const QString &roomId, const QString &body,
+                     const QString &replyTo = "") override;
+    void sendTyping(const QString &roomId, bool typing) override;
+    void markRead(const QString &roomId) override;
+    void joinRoom(const QString &roomId) override;
+    void leaveRoom(const QString &roomId) override;
+
+    // Matrix-specific
+    void sync();
+    void sendReadReceipt(const QString &roomId, const QString &eventId);
+    void sendReadMarkers(const QString &roomId, const QString &fullyRead, const QString &read);
+    void sendReceipt(const QString &roomId, const QString &eventId,
+                     const QString &receiptType = "m.read");
+
+signals:
+    void syncCompleted(const QString &nextBatch);
+    void syncError(const QString &error);
+    void homeserverResolved(const QString &url);
 
 private:
+    void performServerDiscovery();
+    void performLogin();
     void startSyncLoop();
-    void doSync();
-    void processSyncResponse(const QJsonObject &json);
-    void processJoinedRooms(const QJsonObject &roomsObject);
-    void processRoomEvents(const QString &roomId, const QJsonArray &events);
-    void processTimelineEvents(const QString &roomId, const QJsonArray &events);
-    ProtocolMessage parseMessageEvent(const QString &roomId, const QJsonObject &event);
-    ProtocolRoom parseRoomInfo(const QString &roomId, const QJsonObject &roomObj);
-    QString generateTxnId();
-    void setState(ConnectionState state);
-    QNetworkRequest makeRequest(const QString &path) const;
+    void processSyncResponse(const QByteArray &data);
+    void processRoomsData(const QJsonObject &rooms);
 
-    QString m_userId;
-    QString m_password;
+    QNetworkAccessManager *m_networkManager;
+    QString m_homeserver;
     QString m_accessToken;
-    QString m_homeserverUrl;
-    QString m_displayName;
-    ConnectionState m_state = ConnectionState::DISCONNECTED;
-
-    QNetworkAccessManager *m_nam;
-    QTimer *m_syncTimer;
-    bool m_syncActive = false;
+    QString m_deviceId;
     QString m_nextBatch;
-    int m_syncTimeoutMs = 30000;
-    int m_txnCounter = 0;
-
-    QHash<QString, ProtocolRoom> m_rooms;
-    QHash<QString, QVector<ProtocolMessage>> m_messages;
+    QString m_filterId;
+    QTimer m_syncTimer;
+    int m_syncTimeoutSecs = 30;
+    bool m_initialSyncDone = false;
 };
+
+} // namespace progressive_chat

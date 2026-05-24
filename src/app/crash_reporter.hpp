@@ -1,63 +1,45 @@
 #pragma once
 
-#include <QDateTime>
-#include <QObject>
 #include <QString>
-#include <QStringList>
+#include <QObject>
+#include <functional>
 
-struct CrashInfo
-{
-    QDateTime timestamp;
-    int signalNumber = 0;
-    QString signalName;
-    QString appVersion;
-    QString osInfo;
-    QStringList stackTrace;
-
-    QString toString() const;
-    static QString signalNameFromNumber(int sig);
-};
+namespace progressive_chat {
 
 class CrashReporter : public QObject
 {
     Q_OBJECT
 
 public:
-    static CrashReporter *instance();
+    static CrashReporter &instance();
 
-    void init(const QString &appVersion);
-    void checkForPreviousCrash();
-    void sendCrashReport(const QString &crashLog);
-    void setReportEndpoint(const QString &url);
+    void initialize(const QString &configDir);
+    void setUploadUrl(const QString &url);
+    void setEnabled(bool enabled);
 
-    CrashInfo lastCrash() const;
-    QString crashDirectory() const;
+    void recordBreadcrumb(const QString &message);
+    void recordUserAction(const QString &action);
+    void recordNetworkRequest(const QString &url, int statusCode);
 
-    static QString osInformation();
+    void handleCrash(const QString &stackTrace, const QString &reason = "");
 
 signals:
-    void previousCrashDetected(const QString &crashLog,
-                               const QDateTime &timestamp);
+    void crashReportReady(const QString &reportPath);
+    void uploadComplete(bool success);
 
 private:
     explicit CrashReporter(QObject *parent = nullptr);
     ~CrashReporter() override;
-    CrashReporter(const CrashReporter &) = delete;
-    CrashReporter &operator=(const CrashReporter &) = delete;
 
-    void installSignalHandlers();
+    QString generateReport(const QString &stackTrace, const QString &reason);
+    void saveReport(const QString &report);
+    void uploadReport(const QString &report);
 
-    static void signalHandler(int signal);
-
-    static CrashReporter *s_instance;
-    static QByteArray s_crashDirBytes;
-    static QByteArray s_appVersionBytes;
-    static QByteArray s_osInfoBytes;
-
-    QString m_appVersion;
-    QString m_reportEndpoint;
-    QString m_crashDir;
-    QString m_osInfo;
-    CrashInfo m_lastCrash;
-    bool m_initialized = false;
+    QString m_configDir;
+    QString m_uploadUrl;
+    bool m_enabled = true;
+    QStringList m_breadcrumbs;
+    QStringList m_recentActions;
 };
+
+} // namespace progressive_chat

@@ -1,65 +1,38 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22.0)
+project(progressive-android-concept
+    VERSION 0.3.0
+    DESCRIPTION "Progressive Chat — 100% C++ desktop Matrix client"
+    LANGUAGES CXX C
+)
 
-project(progressive_android_concept VERSION 1.0.0 LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+# Find Qt6
+find_package(Qt6 REQUIRED COMPONENTS
+    Widgets
+    Network
+    Sql
+    Multimedia
+    Svg
+    LinguistTools
+    Concurrent
+    Core5Compat
+)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network Sql Core)
-find_package(Qt6 QUIET COMPONENTS Multimedia)
-
-add_subdirectory(src)
-add_subdirectory(progressive)
+# OLM encryption library
 add_subdirectory(libolm)
-add_subdirectory(tests)
 
-target_link_libraries(progressive_android_concept PRIVATE
-    Qt6::Widgets
-    Qt6::Network
-    Qt6::Sql
-    Qt6::Core
-    progressive_native
-)
-if(TARGET Qt6::Multimedia)
-    target_link_libraries(progressive_android_concept PRIVATE Qt6::Multimedia)
-    target_compile_definitions(progressive_android_concept PRIVATE HAS_QT_MULTIMEDIA=1)
+# Progressive core SDK library
+add_subdirectory(progressive)
+
+# Main application
+add_subdirectory(src)
+
+# Tests
+option(BUILD_TESTS "Build test suite" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
-
-target_include_directories(progressive_android_concept PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/progressive/include
-)
-
-if(WIN32)
-    set_target_properties(progressive_android_concept PROPERTIES
-        WIN32_EXECUTABLE ON
-    )
-endif()
-
-if(APPLE)
-    set_target_properties(progressive_android_concept PROPERTIES
-        MACOSX_BUNDLE ON
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.progressive.android.concept"
-        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    )
-endif()
-
-install(TARGETS progressive_android_concept
-    BUNDLE DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-install(TARGETS progressive_native
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/progressive/include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/progressive
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
-)

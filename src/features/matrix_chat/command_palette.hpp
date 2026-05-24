@@ -1,79 +1,40 @@
 #pragma once
 
 #include <QDialog>
-#include <QVector>
-#include <functional>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QLabel>
+#include <QVBoxLayout>
 
-class QLineEdit;
-class QListWidget;
-class QListWidgetItem;
-class QLabel;
-class QShortcut;
-class QPropertyAnimation;
+namespace progressive_chat {
 
-struct Command
-{
-    QString name;
-    QString category;
-    QString shortcut;
-    QString icon;
-    std::function<void()> action;
-};
+class ProtocolManager;
 
 class CommandPalette : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit CommandPalette(QWidget *parent = nullptr);
-    ~CommandPalette() override = default;
+    explicit CommandPalette(ProtocolManager *manager, QWidget *parent = nullptr);
 
-    static void installGlobalShortcut(QWidget *parent, CommandPalette *palette);
-
-signals:
-    void goToRoomRequested();
-    void openSettingsRequested();
-    void openProfileRequested();
-    void startDirectChatRequested();
-    void createRoomRequested();
-    void joinRoomRequested();
-    void markAllReadRequested();
-    void connectMatrixRequested();
-    void connectIrcRequested();
-    void addLemmyInstanceRequested();
-    void toggleThemeRequested();
-    void toggleCompactModeRequested();
-    void toggleSidebarRequested();
-    void exportChatRequested();
-    void importKeysRequested();
-    void clearCacheRequested();
-    void viewLogsRequested();
-
-public slots:
-    void open();
-
-protected:
-    void keyPressEvent(QKeyEvent *event) override;
-    void showEvent(QShowEvent *event) override;
-
-private slots:
-    void onSearchTextChanged(const QString &text);
-    void onCommandActivated(QListWidgetItem *item);
+    struct Command {
+        QString name;
+        QString description;
+        QString shortcut;
+        std::function<void()> action;
+    };
 
 private:
     void setupUi();
-    void populateCommands();
-    void filterCommands(const QString &query);
-    void moveSelection(int delta);
-    void executeCurrentCommand();
-    void animateFadeIn();
+    void registerBuiltinCommands();
+    void filterCommands(const QString &filter);
+    void executeSelected();
 
-    QLineEdit *m_searchEdit;
+    ProtocolManager *m_protocolManager;
+    QLineEdit *m_searchInput;
     QListWidget *m_commandList;
-    QLabel *m_categoryLabel;
-    QLabel *m_countLabel;
-    QPropertyAnimation *m_fadeAnimation;
-
-    QVector<Command> m_allCommands;
-    QVector<int> m_filteredIndices;
+    QLabel *m_hintLabel;
+    QList<Command> m_commands;
 };
+
+} // namespace progressive_chat

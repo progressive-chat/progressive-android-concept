@@ -1,361 +1,342 @@
-#include "app/main_window.hpp"
+#include "main_window.hpp"
+#include "notification_manager.hpp"
+#include "system_tray_manager.hpp"
+#include "log_viewer_dialog.hpp"
+#include "app_update_checker.hpp"
+#include "../protocol/protocol_manager.hpp"
+#include "../features/home/chat_list_widget.hpp"
+#include "../features/home/chat_detail_widget.hpp"
+#include "../features/home/welcome_widget.hpp"
+#include "../features/home/status_message_editor.hpp"
+#include "../features/matrix_chat/account_switcher.hpp"
+#include "../features/matrix_chat/settings_dialog.hpp"
+#include "../features/matrix_chat/command_palette.hpp"
+#include "../features/matrix_chat/user_profile_dialog.hpp"
+#include "../features/matrix_chat/proxy_config_dialog.hpp"
+#include "../features/auth/matrix_auth_dialog.hpp"
+#include "../ui/components/about_dialog.hpp"
+#include "../ui/themes/theme_manager.hpp"
 
-#include "app/application.hpp"
-#include "protocol/protocol_manager.hpp"
-
-#include <QTabWidget>
-#include <QStackedWidget>
-#include <QListView>
-#include <QStringListModel>
-#include <QTextBrowser>
-#include <QLineEdit>
-#include <QLabel>
-#include <QToolBar>
-#include <QStatusBar>
-#include <QAction>
-#include <QPushButton>
-#include <QSplitter>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QMenuBar>
+#include <QCloseEvent>
+#include <QKeyEvent>
 #include <QMenu>
+#include <QMenuBar>
+#include <QAction>
+#include <QToolBar>
+#include <QToolButton>
+#include <QStatusBar>
+#include <QSplitter>
+#include <QSettings>
 #include <QApplication>
-#include <QPixmap>
-#include <QPainter>
 #include <QMessageBox>
+#include <QDialog>
+#include <QTimer>
 
-using namespace progressive;
-
-static QPixmap makeDot(QColor color, int size = 10)
-{
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
-    QPainter painter(&pix);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setBrush(color);
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(0, 0, size, size);
-    painter.end();
-    return pix;
-}
+namespace progressive_chat {
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_app(Application::instance())
-    , m_protocolTabs(nullptr)
-    , m_centralStack(nullptr)
-    , m_chatListPage(nullptr)
-    , m_chatListSplitter(nullptr)
-    , m_chatListView(nullptr)
-    , m_chatListModel(nullptr)
-    , m_chatDetailPage(nullptr)
-    , m_messageArea(nullptr)
-    , m_messageInput(nullptr)
-    , m_sendButton(nullptr)
-    , m_backButton(nullptr)
-    , m_settingsPage(nullptr)
-    , m_toolBar(nullptr)
-    , m_newChatAction(nullptr)
-    , m_joinRoomAction(nullptr)
-    , m_matrixStatus(nullptr)
-    , m_ircStatus(nullptr)
-    , m_lemmyStatus(nullptr)
-    , m_settingsAction(nullptr)
-    , m_quitAction(nullptr)
-    , m_addMatrixAction(nullptr)
-    , m_addIrcAction(nullptr)
-    , m_addLemmyAction(nullptr)
 {
-    setWindowTitle("Progressive Chat Concept");
-    resize(1200, 800);
-
-    setupUi();
-    connectSignals();
+    setWindowTitle("Progressive Chat");
+    setMinimumSize(900, 600);
+    resize(1280, 800);
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    saveWindowState();
+    delete m_systemTray;
+}
 
-void MainWindow::setupUi()
+void MainWindow::setThemeManager(ThemeManager *manager) { m_themeManager = manager; }
+void MainWindow::setNotificationManager(NotificationManager *manager) { m_notificationManager = manager; }
+void MainWindow::setProtocolManager(ProtocolManager *manager) { m_protocolManager = manager; }
+
+void MainWindow::initialize()
 {
     setupMenuBar();
     setupToolBar();
+    setupCentralArea();
+    setupSidebar();
     setupStatusBar();
-    setupCentralWidget();
+    setupDockWidgets();
+    restoreWindowState();
+    applyTheme();
 }
 
 void MainWindow::setupMenuBar()
 {
-    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+    QMenuBar *mb = menuBar();
 
-    m_settingsAction = new QAction(tr("&Settings..."), this);
-    m_settingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
-    fileMenu->addAction(m_settingsAction);
+    // File menu
+    QMenu *fileMenu = mb->addMenu(tr("&File"));
+    QAction *loginAction = fileMenu->addAction(tr("&Add Account..."));
+    connect(loginAction, &QAction::triggered, this, &MainWindow::showLoginDialog);
+
+    QAction *accountAction = fileMenu->addAction(tr("&Switch Account..."));
+    connect(accountAction, &QAction::triggered, this, &MainWindow::showAccountSwitcher);
 
     fileMenu->addSeparator();
 
-    m_quitAction = new QAction(tr("&Quit"), this);
-    m_quitAction->setShortcut(QKeySequence::Quit);
-    fileMenu->addAction(m_quitAction);
+    QAction *settingsAction = fileMenu->addAction(tr("&Settings..."));
+    connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettings);
 
-    QMenu *protocolsMenu = menuBar()->addMenu(tr("&Protocols"));
+    fileMenu->addSeparator();
 
-    m_addMatrixAction = new QAction(tr("Add &Matrix Account..."), this);
-    protocolsMenu->addAction(m_addMatrixAction);
+    QAction *quitAction = fileMenu->addAction(tr("&Quit"));
+    quitAction->setShortcut(QKeySequence::Quit);
+    connect(quitAction, &QAction::triggered, this, &QWidget::close);
 
-    m_addIrcAction = new QAction(tr("Add &IRC Server..."), this);
-    protocolsMenu->addAction(m_addIrcAction);
+    // View menu
+    QMenu *viewMenu = mb->addMenu(tr("&View"));
+    QAction *toggleSidebar = viewMenu->addAction(tr("Toggle &Sidebar"));
+    toggleSidebar->setShortcut(QKeySequence("Ctrl+\"));
+    connect(toggleSidebar, &QAction::triggered, this, &MainWindow::toggleSidebar);
 
-    m_addLemmyAction = new QAction(tr("Add &Lemmy Instance..."), this);
-    protocolsMenu->addAction(m_addLemmyAction);
+    QAction *compactAction = viewMenu->addAction(tr("&Compact Mode"));
+    compactAction->setCheckable(true);
+    compactAction->setShortcut(QKeySequence("Ctrl+Shift+C"));
+    connect(compactAction, &QAction::toggled, this, [this](bool checked) {
+        m_compactMode = checked;
+    });
+
+    viewMenu->addSeparator();
+    QAction *zoomInAction = viewMenu->addAction(tr("Zoom &In"));
+    zoomInAction->setShortcut(QKeySequence::ZoomIn);
+    QAction *zoomOutAction = viewMenu->addAction(tr("Zoom &Out"));
+    zoomOutAction->setShortcut(QKeySequence::ZoomOut);
+
+    // Navigation menu
+    QMenu *navMenu = mb->addMenu(tr("&Navigate"));
+    QAction *cmdPalette = navMenu->addAction(tr("&Command Palette..."));
+    cmdPalette->setShortcut(QKeySequence("Ctrl+K"));
+    connect(cmdPalette, &QAction::triggered, this, &MainWindow::showCommandPalette);
+
+    // Help menu
+    QMenu *helpMenu = mb->addMenu(tr("&Help"));
+    QAction *aboutAction = helpMenu->addAction(tr("&About Progressive Chat"));
+    connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+
+    QAction *logAction = helpMenu->addAction(tr("&Log Viewer..."));
+    connect(logAction, &QAction::triggered, this, &MainWindow::showLogViewer);
 }
 
 void MainWindow::setupToolBar()
 {
-    m_toolBar = addToolBar(tr("Main"));
+    m_mainToolBar = addToolBar(tr("Main"));
+    m_mainToolBar->setMovable(false);
+    m_mainToolBar->setIconSize(QSize(22, 22));
 
-    m_newChatAction = new QAction(tr("New Chat"), this);
-    m_newChatAction->setStatusTip(tr("Start a new chat"));
-    m_toolBar->addAction(m_newChatAction);
+    QAction *homeAction = m_mainToolBar->addAction(tr("Home"));
+    homeAction->setToolTip(tr("Home"));
 
-    m_joinRoomAction = new QAction(tr("Join Room"), this);
-    m_joinRoomAction->setStatusTip(tr("Join an existing room or channel"));
-    m_toolBar->addAction(m_joinRoomAction);
+    QAction *newChatAction = m_mainToolBar->addAction(tr("New Chat"));
+    newChatAction->setToolTip(tr("Start a new chat"));
+
+    QAction *searchAction = m_mainToolBar->addAction(tr("Search"));
+    searchAction->setShortcut(QKeySequence("Ctrl+F"));
+    searchAction->setToolTip(tr("Search messages"));
+
+    m_mainToolBar->addSeparator();
+
+    QAction *spacesAction = m_mainToolBar->addAction(tr("Spaces"));
+    spacesAction->setToolTip(tr("Explore spaces"));
+
+    m_mainToolBar->addSeparator();
+
+    QAction *profileAction = m_mainToolBar->addAction(tr("Profile"));
+    connect(profileAction, &QAction::triggered, this, &MainWindow::showUserProfile);
+}
+
+void MainWindow::setupCentralArea()
+{
+    m_centralStack = new QStackedWidget(this);
+
+    // Welcome page
+    m_welcomeWidget = new WelcomeWidget(this);
+    m_centralStack->addWidget(m_welcomeWidget);
+
+    // Chat split view
+    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
+
+    m_chatList = new ChatListWidget(splitter);
+    m_chatDetail = new ChatDetailWidget(splitter);
+
+    splitter->addWidget(m_chatList);
+    splitter->addWidget(m_chatDetail);
+    splitter->setStretchFactor(0, 1);
+    splitter->setStretchFactor(1, 3);
+
+    m_centralStack->addWidget(splitter);
+    m_mainSplitter = splitter;
+
+    // Connect chat list to detail
+    connect(m_chatList, &ChatListWidget::roomSelected, this, &MainWindow::navigateToRoom);
+    connect(m_chatList, &ChatListWidget::roomSelected,
+            m_chatDetail, &ChatDetailWidget::loadRoom);
+
+    setCentralWidget(m_centralStack);
+}
+
+void MainWindow::setupSidebar()
+{
+    // Sidebar already integrated via splitter layout
 }
 
 void MainWindow::setupStatusBar()
 {
-    m_matrixStatus = createConnectionIndicator(tr("Matrix"));
-    m_ircStatus = createConnectionIndicator(tr("IRC"));
-    m_lemmyStatus = createConnectionIndicator(tr("Lemmy"));
+    QStatusBar *sb = statusBar();
 
-    statusBar()->addPermanentWidget(m_matrixStatus);
-    statusBar()->addPermanentWidget(m_ircStatus);
-    statusBar()->addPermanentWidget(m_lemmyStatus);
-}
+    m_statusEditor = new StatusMessageEditor(this);
+    sb->addPermanentWidget(m_statusEditor);
 
-QLabel *MainWindow::createConnectionIndicator(const QString &name)
-{
-    auto *label = new QLabel(this);
-    label->setPixmap(makeDot(Qt::red));
-    label->setToolTip(tr("%1: Disconnected").arg(name));
-    label->setContentsMargins(4, 0, 10, 0);
-    return label;
-}
+    QLabel *connectionLabel = new QLabel("Disconnected", this);
+    sb->addPermanentWidget(connectionLabel);
 
-void MainWindow::setupCentralWidget()
-{
-    m_protocolTabs = new QTabWidget(this);
-
-    // --- Chat List Page (page 0) ---
-    m_chatListPage = new QWidget(this);
-    auto *page0Layout = new QVBoxLayout(m_chatListPage);
-    page0Layout->setContentsMargins(0, 0, 0, 0);
-
-    m_chatListSplitter = new QSplitter(Qt::Horizontal, m_chatListPage);
-    m_chatListView = new QListView(m_chatListSplitter);
-    m_chatListModel = new QStringListModel(m_chatListView);
-    m_chatListView->setModel(m_chatListModel);
-    m_chatListView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-    auto *infoPlaceholder = new QLabel(
-        tr("Select a room to start chatting"), m_chatListSplitter);
-    infoPlaceholder->setAlignment(Qt::AlignCenter);
-    infoPlaceholder->setStyleSheet("color: #888; font-size: 14px;");
-
-    m_chatListSplitter->addWidget(m_chatListView);
-    m_chatListSplitter->addWidget(infoPlaceholder);
-    m_chatListSplitter->setStretchFactor(0, 1);
-    m_chatListSplitter->setStretchFactor(1, 3);
-
-    page0Layout->addWidget(m_chatListSplitter);
-
-    // --- Chat Detail Page (page 1) ---
-    m_chatDetailPage = new QWidget(this);
-    auto *page1Layout = new QVBoxLayout(m_chatDetailPage);
-    page1Layout->setContentsMargins(4, 4, 4, 4);
-
-    auto *backBar = new QHBoxLayout();
-    m_backButton = new QPushButton(tr("< Back"), m_chatDetailPage);
-    backBar->addWidget(m_backButton);
-    backBar->addStretch();
-    page1Layout->addLayout(backBar);
-
-    m_messageArea = new QTextBrowser(m_chatDetailPage);
-    m_messageArea->setOpenExternalLinks(true);
-    page1Layout->addWidget(m_messageArea);
-
-    auto *inputBar = new QHBoxLayout();
-    m_messageInput = new QLineEdit(m_chatDetailPage);
-    m_messageInput->setPlaceholderText(tr("Type a message..."));
-    m_sendButton = new QPushButton(tr("Send"), m_chatDetailPage);
-    inputBar->addWidget(m_messageInput);
-    inputBar->addWidget(m_sendButton);
-    page1Layout->addLayout(inputBar);
-
-    // --- Settings Page (page 2) ---
-    m_settingsPage = new QWidget(this);
-    auto *page2Layout = new QVBoxLayout(m_settingsPage);
-    page2Layout->setContentsMargins(12, 12, 12, 12);
-    auto *settingsLabel = new QLabel(tr("Settings"), m_settingsPage);
-    settingsLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
-    page2Layout->addWidget(settingsLabel);
-    page2Layout->addStretch();
-
-    // --- Stacked Widget ---
-    m_centralStack = new QStackedWidget(this);
-    m_centralStack->addWidget(m_chatListPage);   // index 0
-    m_centralStack->addWidget(m_chatDetailPage); // index 1
-    m_centralStack->addWidget(m_settingsPage);   // index 2
-    m_centralStack->setCurrentIndex(0);
-
-    // Protocol tabs wrap the central stack
-    m_protocolTabs->addTab(m_centralStack, tr("Matrix"));
-    m_protocolTabs->addTab(new QWidget(this), tr("IRC"));
-    m_protocolTabs->addTab(new QWidget(this), tr("Lemmy"));
-
-    setCentralWidget(m_protocolTabs);
-}
-
-void MainWindow::connectSignals()
-{
-    // Menu actions
-    QObject::connect(m_settingsAction, &QAction::triggered,
-                     this, &MainWindow::onSettingsTriggered);
-    QObject::connect(m_quitAction, &QAction::triggered,
-                     this, &MainWindow::onQuitTriggered);
-    QObject::connect(m_addMatrixAction, &QAction::triggered,
-                     this, &MainWindow::onAddMatrixAccount);
-    QObject::connect(m_addIrcAction, &QAction::triggered,
-                     this, &MainWindow::onAddIrcServer);
-    QObject::connect(m_addLemmyAction, &QAction::triggered,
-                     this, &MainWindow::onAddLemmyInstance);
-
-    // Toolbar actions
-    QObject::connect(m_newChatAction, &QAction::triggered,
-                     this, &MainWindow::onNewChat);
-    QObject::connect(m_joinRoomAction, &QAction::triggered,
-                     this, &MainWindow::onJoinRoom);
-
-    // Chat list selection
-    QObject::connect(m_chatListView, &QListView::activated,
-                     this, &MainWindow::onRoomSelected);
-    QObject::connect(m_chatListView, &QListView::clicked,
-                     this, &MainWindow::onRoomSelected);
-
-    // Protocol tabs
-    QObject::connect(m_protocolTabs, &QTabWidget::currentChanged,
-                     this, &MainWindow::onProtocolTabChanged);
-
-    // Send message
-    QObject::connect(m_sendButton, &QPushButton::clicked,
-                     this, &MainWindow::onSendMessage);
-    QObject::connect(m_messageInput, &QLineEdit::returnPressed,
-                     this, &MainWindow::onSendMessage);
-
-    // Back button from chat detail
-    QObject::connect(m_backButton, &QPushButton::clicked, this, [this]() {
-        m_centralStack->setCurrentIndex(0);
+    connect(this, &MainWindow::roomSelected, this, [this](const QString &roomId) {
+        m_currentRoomId = roomId;
+        statusBar()->showMessage("Room: " + roomId, 3000);
     });
-
-    // Application connection state updates
-    QObject::connect(&m_app, &Application::connectionStateChanged,
-                     this, &MainWindow::updateConnectionStates);
 }
 
-// --- Slots ---
-
-void MainWindow::onSettingsTriggered()
+void MainWindow::setupDockWidgets()
 {
-    m_centralStack->setCurrentIndex(2);
+    // Right-side info panel (can be toggled)
+    QDockWidget *infoDock = new QDockWidget(tr("Room Info"), this);
+    QWidget *infoPanel = new QWidget(infoDock);
+    infoPanel->setMinimumWidth(200);
+    infoDock->setWidget(infoPanel);
+    addDockWidget(Qt::RightDockWidgetArea, infoDock);
+    infoDock->hide();
 }
 
-void MainWindow::onQuitTriggered()
+void MainWindow::setupSystemTray(NotificationManager *notifManager)
 {
-    QApplication::quit();
-}
-
-void MainWindow::onAddMatrixAccount()
-{
-    QMessageBox::information(this, tr("Add Matrix Account"),
-                             tr("Matrix account dialog placeholder."));
-}
-
-void MainWindow::onAddIrcServer()
-{
-    QMessageBox::information(this, tr("Add IRC Server"),
-                             tr("IRC server dialog placeholder."));
-}
-
-void MainWindow::onAddLemmyInstance()
-{
-    QMessageBox::information(this, tr("Add Lemmy Instance"),
-                             tr("Lemmy instance dialog placeholder."));
-}
-
-void MainWindow::onNewChat()
-{
-    m_protocolTabs->setCurrentIndex(0);
-    m_centralStack->setCurrentIndex(0);
-
-    QMessageBox::information(this, tr("New Chat"),
-                             tr("New chat dialog placeholder."));
-}
-
-void MainWindow::onJoinRoom()
-{
-    m_protocolTabs->setCurrentIndex(0);
-    m_centralStack->setCurrentIndex(0);
-
-    QMessageBox::information(this, tr("Join Room"),
-                             tr("Join room dialog placeholder."));
-}
-
-void MainWindow::onRoomSelected(const QModelIndex &index)
-{
-    if (!index.isValid())
-        return;
-
-    const QString roomName = m_chatListModel->data(index, Qt::DisplayRole).toString();
-    m_messageArea->clear();
-    m_messageArea->append(
-        QStringLiteral("<b>%1</b>").arg(roomName.toHtmlEscaped()));
-    m_messageInput->clear();
-    m_messageInput->setFocus();
-
-    m_centralStack->setCurrentIndex(1);
-}
-
-void MainWindow::onProtocolTabChanged(int index)
-{
-    if (m_centralStack->parent() == m_protocolTabs) {
-        Q_UNUSED(index);
-        m_centralStack->setCurrentIndex(0);
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        m_systemTray = new SystemTrayManager(this, notifManager);
+        m_systemTray->initialize();
     }
 }
 
-void MainWindow::onSendMessage()
+void MainWindow::applyTheme()
 {
-    const QString text = m_messageInput->text().trimmed();
-    if (text.isEmpty())
-        return;
-
-    m_messageArea->append(
-        QStringLiteral("<span style='color:#2b579a;'><b>You:</b> %1</span>")
-            .arg(text.toHtmlEscaped()));
-
-    m_messageInput->clear();
-    m_messageInput->setFocus();
+    if (m_themeManager) {
+        QString themeName = m_themeManager->activeThemeName();
+        // Apply to all widgets...
+    }
 }
 
-void MainWindow::updateConnectionStates()
+void MainWindow::showSettings()
 {
-    const auto &pm = m_app.protocolManager();
-
-    auto setDot = [](QLabel *label, bool connected) {
-        label->setPixmap(makeDot(connected ? Qt::green : Qt::red));
-    };
-
-    setDot(m_matrixStatus, pm->overallConnectionState() == ConnectionState::CONNECTED);
-    setDot(m_ircStatus, false);
-    setDot(m_lemmyStatus, false);
+    SettingsDialog dialog(m_protocolManager, this);
+    dialog.exec();
 }
+
+void MainWindow::showAboutDialog()
+{
+    AboutDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::showCommandPalette()
+{
+    CommandPalette palette(m_protocolManager, this);
+    palette.exec();
+}
+
+void MainWindow::showLogViewer()
+{
+    LogViewerDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::showUserProfile()
+{
+    UserProfileDialog dialog(m_protocolManager, this);
+    dialog.exec();
+}
+
+void MainWindow::showLoginDialog()
+{
+    MatrixAuthDialog dialog(m_protocolManager, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        m_centralStack->setCurrentIndex(1);
+    }
+}
+
+void MainWindow::showAccountSwitcher()
+{
+    AccountSwitcher switcher(m_protocolManager, this);
+    switcher.exec();
+}
+
+void MainWindow::toggleSidebar()
+{
+    m_sidebarVisible = !m_sidebarVisible;
+    if (m_chatList)
+        m_chatList->setVisible(m_sidebarVisible);
+}
+
+void MainWindow::toggleCompactMode()
+{
+    m_compactMode = !m_compactMode;
+}
+
+void MainWindow::navigateToRoom(const QString &roomId)
+{
+    m_currentRoomId = roomId;
+    m_centralStack->setCurrentIndex(1);
+    emit roomSelected(roomId);
+}
+
+void MainWindow::updateConnectionStatus(const QString &status, bool connected)
+{
+    statusBar()->showMessage(status);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (m_systemTray && m_systemTray->isVisible()) {
+        hide();
+        event->ignore();
+    } else {
+        saveWindowState();
+        event->accept();
+    }
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Escape) {
+        if (m_chatDetail && !m_chatDetail->hasActiveSearch())
+            m_chatDetail->clearFocus();
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+}
+
+void MainWindow::saveWindowState()
+{
+    QSettings settings("ProgressiveChat", "progressive_chat");
+    settings.setValue("mainwindow/geometry", saveGeometry());
+    settings.setValue("mainwindow/state", saveState());
+    settings.setValue("mainwindow/compact", m_compactMode);
+    settings.setValue("mainwindow/sidebar", m_sidebarVisible);
+}
+
+void MainWindow::restoreWindowState()
+{
+    QSettings settings("ProgressiveChat", "progressive_chat");
+    if (settings.contains("mainwindow/geometry"))
+        restoreGeometry(settings.value("mainwindow/geometry").toByteArray());
+    if (settings.contains("mainwindow/state"))
+        restoreState(settings.value("mainwindow/state").toByteArray());
+    m_compactMode = settings.value("mainwindow/compact", false).toBool();
+    m_sidebarVisible = settings.value("mainwindow/sidebar", true).toBool();
+}
+
+} // namespace progressive_chat

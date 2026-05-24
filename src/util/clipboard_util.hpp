@@ -1,25 +1,40 @@
 #pragma once
 
-#include <QString>
-#include <QImage>
 #include <QApplication>
 #include <QClipboard>
+#include <QMimeData>
+#include <QString>
 
-namespace ClipboardUtil {
+namespace progressive_chat {
+namespace util {
 
-inline void copy(const QString &text)
+inline void copyToClipboard(const QString &text)
 {
-    QApplication::clipboard()->setText(text);
+    QClipboard *clipboard = QApplication::clipboard();
+    if (clipboard) {
+        clipboard->setText(text);
+    }
 }
 
-inline QString paste()
+inline void copyImageToClipboard(const QImage &image)
 {
-    return QApplication::clipboard()->text();
+    QClipboard *clipboard = QApplication::clipboard();
+    if (clipboard) {
+        clipboard->setImage(image);
+    }
 }
 
-inline void copyImage(const QImage &img)
+inline QString clipboardText()
 {
-    QApplication::clipboard()->setImage(img);
+    QClipboard *clipboard = QApplication::clipboard();
+    return clipboard ? clipboard->text() : QString();
 }
 
-} // namespace ClipboardUtil
+inline bool clipboardHasImage()
+{
+    QClipboard *clipboard = QApplication::clipboard();
+    return clipboard && !clipboard->image().isNull();
+}
+
+} // namespace util
+} // namespace progressive_chat

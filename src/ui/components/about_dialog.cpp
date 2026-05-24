@@ -1,187 +1,160 @@
 #include "about_dialog.hpp"
 
 #include <QApplication>
-#include <QDialogButtonBox>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QFont>
-#include <QPainter>
-#include <QVBoxLayout>
+#include <QFile>
 
-AboutDialog::AboutDialog(QWidget *parent)
-    : QDialog(parent)
+namespace progressive_chat {
+
+AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent)
 {
+    setWindowTitle("About Progressive Chat");
+    setMinimumSize(500, 400);
     setupUi();
-}
-
-QPixmap AboutDialog::generateAppIcon(int size) const
-{
-    QPixmap pixmap(size, size);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    QRect circleRect(0, 0, size, size);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor("#1976D2"));
-    painter.drawEllipse(circleRect);
-
-    QFont font;
-    font.setPixelSize(size / 2);
-    font.setBold(true);
-    painter.setFont(font);
-    painter.setPen(Qt::white);
-    painter.drawText(circleRect, Qt::AlignCenter, QStringLiteral("PC"));
-
-    painter.end();
-    return pixmap;
 }
 
 void AboutDialog::setupUi()
 {
-    setWindowTitle(tr("About Progressive Chat"));
-    setFixedSize(420, 560);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    auto *mainLayout = new QVBoxLayout(this);
 
-    auto *rootLayout = new QVBoxLayout(this);
-    rootLayout->setAlignment(Qt::AlignCenter);
-    rootLayout->setSpacing(10);
-    rootLayout->setContentsMargins(30, 20, 30, 20);
+    m_tabWidget = new QTabWidget();
+    setupAboutTab();
+    setupCreditsTab();
+    setupLicensesTab();
+    mainLayout->addWidget(m_tabWidget);
 
-    auto addSpacing = [&](int pixels) {
-        rootLayout->addSpacing(pixels);
-    };
+    auto *closeBtn = new QPushButton("Close");
+    connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
+    mainLayout->addWidget(closeBtn, 0, Qt::AlignRight);
+}
 
-    // App icon
-    m_appIconLabel = new QLabel(this);
-    m_appIconLabel->setPixmap(generateAppIcon(96));
-    m_appIconLabel->setAlignment(Qt::AlignCenter);
-    m_appIconLabel->setFixedSize(96, 96);
-    rootLayout->addWidget(m_appIconLabel, 0, Qt::AlignCenter);
+void AboutDialog::setupAboutTab()
+{
+    auto *tab = new QWidget();
+    auto *layout = new QVBoxLayout(tab);
 
-    addSpacing(4);
-
-    // Title
-    m_titleLabel = new QLabel(tr("Progressive Chat Concept"), this);
-    QFont titleFont;
-    titleFont.setPointSize(18);
-    titleFont.setBold(true);
-    m_titleLabel->setFont(titleFont);
-    m_titleLabel->setAlignment(Qt::AlignCenter);
-    rootLayout->addWidget(m_titleLabel);
-
-    addSpacing(2);
+    // Logo
+    m_logoLabel = new QLabel("Progressive Chat");
+    QFont logoFont;
+    logoFont.setPixelSize(32);
+    logoFont.setBold(true);
+    m_logoLabel->setFont(logoFont);
+    m_logoLabel->setAlignment(Qt::AlignCenter);
+    layout->addWidget(m_logoLabel);
 
     // Version
-    m_versionLabel = new QLabel(tr("Version 1.0.0"), this);
+    m_versionLabel = new QLabel("Version " + QApplication::applicationVersion());
     m_versionLabel->setAlignment(Qt::AlignCenter);
-    m_versionLabel->setStyleSheet(QStringLiteral("color: #666;"));
-    rootLayout->addWidget(m_versionLabel);
+    m_versionLabel->setStyleSheet("color: #888; font-size: 14px;");
+    layout->addWidget(m_versionLabel);
 
-    addSpacing(6);
+    layout->addSpacing(16);
 
     // Description
-    m_descriptionLabel = new QLabel(
-        tr("100% C++ Matrix/IRC/Lemmy client -\n"
-           "A concept rewrite of progressive-android\n"
-           "in native C++"),
-        this);
-    m_descriptionLabel->setAlignment(Qt::AlignCenter);
-    m_descriptionLabel->setWordWrap(true);
-    rootLayout->addWidget(m_descriptionLabel);
+    auto *descLabel = new QLabel(
+        "Progressive Chat is a 100% C++ desktop Matrix client.
+"
+        "Built with Qt6 and modern C++23.
 
-    addSpacing(6);
+"
+        "Features:
+"
+        "• Matrix, IRC, and Lemmy protocol support
+"
+        "• End-to-end encryption via OLM/Megolm
+"
+        "• Spaces, threads, polls, and reactions
+"
+        "• Voice/video calling support
+"
+        "• Cross-platform (Linux, macOS, Windows)
 
-    // Built with Qt
-    m_builtWithLabel = new QLabel(
-        tr("Built with Qt %1").arg(QString::fromLatin1(qVersion())),
-        this);
-    m_builtWithLabel->setAlignment(Qt::AlignCenter);
-    m_builtWithLabel->setStyleSheet(QStringLiteral("color: #1976D2; font-weight: bold;"));
-    rootLayout->addWidget(m_builtWithLabel);
+"
+        "https://progressive.chat");
+    descLabel->setWordWrap(true);
+    descLabel->setStyleSheet("font-size: 12px;");
+    layout->addWidget(descLabel);
 
-    addSpacing(4);
+    layout->addSpacing(16);
 
-    // C++20 badge
-    m_standardBadge = new QLabel(tr("C++20 Standard"), this);
-    m_standardBadge->setAlignment(Qt::AlignCenter);
-    m_standardBadge->setFixedWidth(160);
-    m_standardBadge->setFixedHeight(28);
-    m_standardBadge->setStyleSheet(QStringLiteral(
-        "background-color: #E8F5E9; color: #2E7D32;"
-        "border-radius: 14px; font-weight: bold;"
-        "padding: 4px;"));
-    rootLayout->addWidget(m_standardBadge, 0, Qt::AlignCenter);
-
-    addSpacing(6);
-
-    // Authors
-    m_authorsLabel = new QLabel(tr("Progressive Chat Team"), this);
-    m_authorsLabel->setAlignment(Qt::AlignCenter);
-    rootLayout->addWidget(m_authorsLabel);
-
-    addSpacing(4);
-
-    // GitHub link
-    m_linkLabel = new QLabel(this);
-    m_linkLabel->setText(QStringLiteral(
-        "<a href=\"https://github.com/progressive-chat/progressive-android-concept\" "
-        "style=\"color: #1976D2;\">github.com/progressive-chat/progressive-android-concept</a>"));
-    m_linkLabel->setAlignment(Qt::AlignCenter);
-    m_linkLabel->setOpenExternalLinks(true);
-    m_linkLabel->setTextFormat(Qt::RichText);
-    rootLayout->addWidget(m_linkLabel);
-
-    addSpacing(4);
-
-    // License
-    m_licenseLabel = new QLabel(tr("Licensed under Apache 2.0"), this);
-    m_licenseLabel->setAlignment(Qt::AlignCenter);
-    m_licenseLabel->setStyleSheet(QStringLiteral("color: #666;"));
-    rootLayout->addWidget(m_licenseLabel);
-
-    addSpacing(10);
-
-    // Third Party Licenses button
-    m_thirdPartyButton = new QPushButton(tr("Third Party Licenses"), this);
-    m_thirdPartyButton->setCursor(Qt::PointingHandCursor);
-    m_thirdPartyButton->setStyleSheet(QStringLiteral(
-        "QPushButton { border: 1px solid #ccc; border-radius: 6px; padding: 6px 16px; }"
-        "QPushButton:hover { background-color: #f0f0f0; }"));
-    rootLayout->addWidget(m_thirdPartyButton, 0, Qt::AlignCenter);
-
-    QObject::connect(m_thirdPartyButton, &QPushButton::clicked, this, [this]() {
-        QDialog creditsDialog(this);
-        creditsDialog.setWindowTitle(tr("Third Party Licenses"));
-        creditsDialog.setFixedSize(400, 300);
-
-        auto *layout = new QVBoxLayout(&creditsDialog);
-        auto *label = new QLabel(
-            tr("This application uses the following open source libraries:\n\n"
-               "Qt %1 - LGPL v3 / GPL v3 / Commercial\n"
-               "Copyright The Qt Company Ltd.\n\n"
-               "All trademarks and registered trademarks are the\n"
-               "property of their respective owners.").arg(QString::fromLatin1(qVersion())),
-            &creditsDialog);
-        label->setWordWrap(true);
-        layout->addWidget(label);
-
-        auto *closeBtn = new QPushButton(tr("Close"), &creditsDialog);
-        layout->addWidget(closeBtn, 0, Qt::AlignCenter);
-        QObject::connect(closeBtn, &QPushButton::clicked, &creditsDialog, &QDialog::accept);
-
-        creditsDialog.exec();
+    // Links
+    auto *websiteBtn = new QPushButton("Website");
+    connect(websiteBtn, &QPushButton::clicked, []() {
+        QDesktopServices::openUrl(QUrl("https://progressive.chat"));
     });
 
-    addSpacing(10);
+    auto *sourceBtn = new QPushButton("Source Code");
+    connect(sourceBtn, &QPushButton::clicked, []() {
+        QDesktopServices::openUrl(QUrl("https://github.com/progressive-chat/progressive-android-concept"));
+    });
 
-    // OK button
-    m_okButton = new QPushButton(tr("OK"), this);
-    m_okButton->setFixedWidth(100);
-    m_okButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background-color: #1976D2; color: white; border-radius: 6px;"
-        "padding: 8px 24px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #1565C0; }"));
-    rootLayout->addWidget(m_okButton, 0, Qt::AlignCenter);
+    auto *linkLayout = new QHBoxLayout();
+    linkLayout->addStretch();
+    linkLayout->addWidget(websiteBtn);
+    linkLayout->addWidget(sourceBtn);
+    linkLayout->addStretch();
+    layout->addLayout(linkLayout);
 
-    QObject::connect(m_okButton, &QPushButton::clicked, this, &QDialog::accept);
+    layout->addStretch();
+    m_tabWidget->addTab(tab, "About");
 }
+
+void AboutDialog::setupCreditsTab()
+{
+    auto *tab = new QWidget();
+    auto *layout = new QVBoxLayout(tab);
+
+    m_creditsView = new QTextBrowser();
+    m_creditsView->setHtml(
+        "<h2>Credits</h2>"
+        "<p><b>Lead Developer:</b> MaurerAnton</p>"
+        "<p><b>Organization:</b> Progressive Chat</p>"
+        "<br><h3>Libraries</h3>"
+        "<ul>"
+        "<li><b>Qt6</b> — Cross-platform application framework</li>"
+        "<li><b>libolm</b> — Double Ratchet encryption library</li>"
+        "<li><b>Matrix SDK</b> — Core Matrix protocol implementation</li>"
+        "</ul>"
+        "<br><h3>Contributors</h3>"
+        "<p>See the GitHub repository for a full list of contributors.</p>"
+    );
+    layout->addWidget(m_creditsView);
+    m_tabWidget->addTab(tab, "Credits");
+}
+
+void AboutDialog::setupLicensesTab()
+{
+    auto *tab = new QWidget();
+    auto *layout = new QVBoxLayout(tab);
+
+    m_licenseView = new QTextBrowser();
+    m_licenseView->setPlainText(
+        "Progressive Chat
+"
+        "Copyright (c) 2024-2026 Progressive Chat
+
+"
+        "Licensed under the Apache License, Version 2.0
+
+"
+        "https://www.apache.org/licenses/LICENSE-2.0
+
+"
+        "---
+
+"
+        "Included third-party libraries:
+
+"
+        "libolm — Apache 2.0
+"
+        "Qt6 — LGPL v3 / GPL v2 / Commercial
+"
+    );
+    layout->addWidget(m_licenseView);
+    m_tabWidget->addTab(tab, "License");
+}
+
+} // namespace progressive_chat

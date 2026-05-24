@@ -1,51 +1,62 @@
 #pragma once
 
-#include <QObject>
+#include <QApplication>
+#include <QString>
+#include <memory>
 
-#include "protocol/protocol_type.hpp"
+class QNetworkAccessManager;
+class QNetworkProxy;
 
+namespace progressive_chat {
+
+class MainWindow;
+class NotificationManager;
+class ThemeManager;
 class ProtocolManager;
-class MatrixSession;
-class IrcSessionHolder;
-class LemmySessionHolder;
 
-namespace progressive {
-
-class Application : public QObject
+// Application shell — owns all top-level subsystems and manages lifecycle
+class Application : public QApplication
 {
     Q_OBJECT
 
 public:
-    static Application& instance();
+    Application(int &argc, char **argv);
+    ~Application() override;
 
-    void loadSettings();
-    void startProtocolManager();
-    void shutdown();
+    // Configuration
+    void setConfigDirectory(const QString &path);
+    QString configDirectory() const;
 
-    ProtocolManager* protocolManager() const;
-    MatrixSession* matrixSession() const;
-    IrcSessionHolder* ircSessionHolder() const;
-    LemmySessionHolder* lemmySessionHolder() const;
+    void setDebugLogging(bool enabled);
+    void setLogFile(const QString &path);
+    void setCrashReportingEnabled(bool enabled);
+    void setProxyUrl(const QString &url);
 
-    void addIrcSession();
-    void addLemmySession();
+    // Lifecycle
+    bool initialize();
+    int run();
 
-signals:
-    void connectionStateChanged(ProtocolType type, ConnectionState state);
-    void initialized();
-    void shutdownCompleted();
+    // Accessors for subsystems
+    class ProtocolManager *protocolManager() const;
 
 private:
-    Application(QObject* parent = nullptr);
-    ~Application() override;
-    Q_DISABLE_COPY(Application)
+    void setupLogging();
+    void setupNetwork();
+    void setupProtocolSupport();
+    void setupSystrayIntegration();
+    void loadSavedSessions();
+    void registerGlobalShortcuts();
 
-    void loadMatrixSettings();
-    void loadIrcSettings();
-    void loadLemmySettings();
-    void loadPreferences();
+    std::unique_ptr<MainWindow> m_mainWindow;
+    std::unique_ptr<NotificationManager> m_notificationManager;
+    std::unique_ptr<ThemeManager> m_themeManager;
+    std::unique_ptr<ProtocolManager> m_protocolManager;
+    std::unique_ptr<QNetworkAccessManager> m_networkManager;
 
-    bool m_initialized = false;
+    QString m_configDir;
+    QString m_proxyUrl;
+    bool m_debugLogging = false;
+    bool m_crashReporting = true;
 };
 
-} // namespace progressive
+} // namespace progressive_chat

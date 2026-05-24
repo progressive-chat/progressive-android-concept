@@ -1,45 +1,22 @@
 #pragma once
 
-#include <QObject>
-#include <QDateTime>
 #include <QString>
-#include <QVector>
+#include <QStringList>
+#include <QDateTime>
 
-class LogCollector : public QObject
+namespace progressive_chat {
+
+class LogCollector
 {
-    Q_OBJECT
-
 public:
-    struct LogEntry
-    {
-        QtMsgType level;
-        QString message;
-        QDateTime timestamp;
-        QString category;
-    };
+    static QStringList collectRecentLogs(int maxLines = 1000);
+    static QString collectSessionLog(const QString &sessionId);
+    static void cleanupOldLogs(const QString &configDir, int keepDays = 30);
+    static QString formatLogForExport(const QStringList &logs, const QDateTime &from, const QDateTime &to);
+    static void exportLogs(const QString &path, const QStringList &logs);
 
-    static LogCollector &instance();
-
-    void install();
-    static void restore();
-
-    QVector<LogEntry> entries() const;
-    void clear();
-    void setMaxEntries(int max);
-    int maxEntries() const;
-
-    QString toString() const;
-
-signals:
-    void newLogEntry(const LogEntry &entry);
-
-private:
-    explicit LogCollector(QObject *parent = nullptr);
-    ~LogCollector() override;
-
-    static void messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
-
-    QVector<LogEntry> m_entries;
-    int m_maxEntries = 10000;
-    bool m_installed = false;
+    static QString logDirectory(const QString &configDir);
+    static QString currentLogPath(const QString &configDir);
 };
+
+} // namespace progressive_chat

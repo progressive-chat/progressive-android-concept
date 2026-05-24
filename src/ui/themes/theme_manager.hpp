@@ -1,42 +1,63 @@
 #pragma once
 
-#include <QApplication>
 #include <QObject>
 #include <QString>
-#include <QWidget>
+#include <QJsonObject>
+#include <QHash>
+#include <QMap>
+#include <QColor>
+
+namespace progressive_chat {
 
 class ThemeManager : public QObject
 {
     Q_OBJECT
 
 public:
-    enum class ThemeType {
-        Light,
-        Dark,
-        System
-    };
-    Q_ENUM(ThemeType)
+    explicit ThemeManager(QObject *parent = nullptr);
+    ~ThemeManager() override;
 
-    static ThemeManager& instance();
+    enum class Theme { Light, Dark, HighContrast, Retro, Custom };
 
-    void applyTheme(ThemeType type, QApplication* app);
-    void applyTheme(ThemeType type, QWidget* widget);
-    ThemeType currentTheme() const;
-    void toggleTheme();
-    QString themeStylesheet(ThemeType type) const;
+    void loadTheme(const QString &path);
+    void saveTheme(const QString &path);
+    void applyTheme(Theme theme);
+    void applySystemTheme();
+    void setCustomColors(const QMap<QString, QColor> &colors);
+
+    QString activeThemeName() const;
+    Theme activeTheme() const { return m_activeTheme; }
+
+    // Color accessors
+    QColor backgroundColor() const;
+    QColor surfaceColor() const;
+    QColor primaryColor() const;
+    QColor textColor() const;
+    QColor secondaryTextColor() const;
+    QColor borderColor() const;
+    QColor errorColor() const;
+    QColor warningColor() const;
+    QColor successColor() const;
+    QColor linkColor() const;
+    QColor highlightColor() const;
+    QColor sentMessageColor() const;
+    QColor receivedMessageColor() const;
+
+    QString stylesheet() const { return m_stylesheet; }
+    void setStylesheet(const QString &ss);
 
 signals:
-    void themeChanged(ThemeType newTheme);
+    void themeChanged(Theme theme);
+    void colorsUpdated();
 
 private:
-    ThemeManager();
-    ~ThemeManager() override = default;
-    ThemeManager(const ThemeManager&) = delete;
-    ThemeManager& operator=(const ThemeManager&) = delete;
+    void initDefaultThemes();
+    void generateStylesheet();
+    QString colorToString(QColor color) const;
 
-    QPalette buildPalette(ThemeType type) const;
-    ThemeType resolveSystemTheme() const;
-    bool isSystemInDarkMode() const;
-
-    ThemeType m_currentTheme;
+    Theme m_activeTheme = Theme::Light;
+    QString m_stylesheet;
+    QMap<QString, QColor> m_colors;
 };
+
+} // namespace progressive_chat
