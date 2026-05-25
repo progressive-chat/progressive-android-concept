@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId "chat.progressive.app"
         minSdk 26
-        targetSdk 34
+        targetSdk 33
         versionCode 1
         versionName "0.3.0"
     }
