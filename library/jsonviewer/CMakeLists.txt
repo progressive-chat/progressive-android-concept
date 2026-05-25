@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22.0)
+project(jsonviewer LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+add_library(jsonviewer STATIC ${SOURCES})
+target_include_directories(jsonviewer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(jsonviewer PUBLIC progressive nlohmann_json::nlohmann_json)

@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22.0)
+project(dialpad LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+add_library(dialpad STATIC ${SOURCES})
+target_include_directories(dialpad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+if(ANDROID) target_link_libraries(dialpad PUBLIC android log) endif()

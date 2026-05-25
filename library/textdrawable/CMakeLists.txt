@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.0)
+project(textdrawable LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+add_library(textdrawable STATIC ${SOURCES})
+target_include_directories(textdrawable PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -19,28 +19,28 @@ target_include_directories(progressive
 target_link_libraries(progressive
     PUBLIC
         olm
-        Qt6::Core
-        Qt6::Network
-        Qt6::Sql
-        Qt6::Concurrent
+        nlohmann_json::nlohmann_json
 )
 
-if(UNIX)
-    target_link_libraries(progressive PRIVATE pthread)
-endif()
-
-# Platform defines
 if(ANDROID)
+    target_link_libraries(progressive
+        PUBLIC
+            android
+            log
+    )
     target_compile_definitions(progressive PRIVATE PROGRESSIVE_ANDROID)
 elseif(APPLE)
     target_compile_definitions(progressive PRIVATE PROGRESSIVE_APPLE)
+    target_link_libraries(progressive PRIVATE pthread)
 elseif(WIN32)
     target_compile_definitions(progressive PRIVATE PROGRESSIVE_WINDOWS)
 elseif(UNIX)
     target_compile_definitions(progressive PRIVATE PROGRESSIVE_LINUX)
+    target_link_libraries(progressive PRIVATE pthread)
 endif()
 
-# Remove JNI bridge on non-Android platforms
-if(NOT ANDROID)
-    set_property(TARGET progressive PROPERTY JNI_EXCLUDES TRUE)
+# OpenSSL (for crypto operations)
+if(OpenSSL_FOUND OR ANDROID)
+    target_link_libraries(progressive PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(progressive PRIVATE PROGRESSIVE_HAS_OPENSSL)
 endif()
