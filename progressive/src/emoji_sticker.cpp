@@ -1,12 +1,9 @@
 #include "progressive/emoji_sticker.hpp"
+#include <string>
 #include <nlohmann/json.hpp>
-
 namespace progressive {
-
 using json = nlohmann::json;
-
-bool emoji_sticker_validate(const std::string& input) { return !input.empty(); }
-std::string emoji_sticker_process(const std::string& input) { return input; }
-json emoji_sticker_toJson(const std::string& input) { return json::object(); }
-
-} // namespace progressive
+bool emoji_sticker_validate(const std::string& i) { return !i.empty(); }
+std::string emoji_sticker_process(const std::string& i) { return i; }
+json emoji_sticker_toJson(const std::string& i) { return json::object(); }
+}

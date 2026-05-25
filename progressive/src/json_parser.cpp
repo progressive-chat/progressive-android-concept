@@ -1,4 +1,5 @@
 #include "progressive/json_parser.hpp"
+#include <nlohmann/json.hpp>
 #include <cstdlib>
 #include <cstddef>
 

@@ -1,5 +1,9 @@
 #include "progressive/room_settings_utils.hpp"
-std::string buildRoomSettingsUpdate(const std::string&){return"{}";}
-std::string getJoinRuleLabel(const std::string&){return"{}";}
-std::string getHistoryVisibilityLabel(const std::string&){return"{}";}
-std::string getGuestAccessLabel(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool room_settings_utils_validate(const std::string& i) { return !i.empty(); }
+std::string room_settings_utils_process(const std::string& i) { return i; }
+json room_settings_utils_toJson(const std::string& i) { return json::object(); }
+}

@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_ROOM_VERSION_HPP
 #define PROGRESSIVE_ROOM_VERSION_HPP
 

@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_LOGIN_FLOW_HPP
 #define PROGRESSIVE_LOGIN_FLOW_HPP
 

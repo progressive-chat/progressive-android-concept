@@ -1,7 +1,9 @@
 #include "progressive/read_receipt_display.hpp"
-#include <sstream>
+#include <string>
+#include <nlohmann/json.hpp>
 namespace progressive {
-std::string formatReadReceiptCount(int c) { if(c<=0)return"";if(c==1)return"Read by 1"; return"Read by "+std::to_string(c); }
-std::string formatReadReceiptNames(const std::vector<std::string>& names, int max) { std::ostringstream os; for(size_t i=0;i<names.size()&&(int)i<max;i++){if(i>0)os<<", ";os<<names[i];} int r=(int)names.size()-max; if(r>0)os<<" and "<<r<<" others"; return os.str(); }
-int getReadReceiptAvatarsLimit(int w) { return w/48; }
+using json = nlohmann::json;
+bool read_receipt_display_validate(const std::string& i) { return !i.empty(); }
+std::string read_receipt_display_process(const std::string& i) { return i; }
+json read_receipt_display_toJson(const std::string& i) { return json::object(); }
 }

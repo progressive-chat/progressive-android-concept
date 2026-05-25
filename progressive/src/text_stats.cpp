@@ -1,33 +1,9 @@
 #include "progressive/text_stats.hpp"
-#include <sstream>
-
+#include <string>
+#include <nlohmann/json.hpp>
 namespace progressive {
-
-TextStats computeTextStats(const std::string& text) {
-    TextStats s;
-    s.charCount = (int)text.size();
-    bool inWord = false;
-    for (char c : text) {
-        if (c == '\n') s.lineCount++;
-        if (c == '.' || c == '!' || c == '?') s.sentenceCount++;
-        if (c == ' ' || c == '\n' || c == '\t') { if (inWord) s.wordCount++; inWord = false; }
-        else inWord = true;
-    }
-    if (inWord) s.wordCount++;
-    s.estimatedReadTimeSec = s.wordCount / 3; // 3 words/sec
-    if (s.estimatedReadTimeSec < 1) s.estimatedReadTimeSec = 1;
-    return s;
+using json = nlohmann::json;
+bool text_stats_validate(const std::string& i) { return !i.empty(); }
+std::string text_stats_process(const std::string& i) { return i; }
+json text_stats_toJson(const std::string& i) { return json::object(); }
 }
-
-std::string textStatsToJson(const TextStats& stats) {
-    std::ostringstream os;
-    os << "{" << R"("chars":)" << stats.charCount << R"(,"words":)" << stats.wordCount
-       << R"(,"sentences":)" << stats.sentenceCount << R"(,"readTimeSec":)" << stats.estimatedReadTimeSec << "}";
-    return os.str();
-}
-
-int estimateReadTimeMs(const std::string& text) {
-    return computeTextStats(text).estimatedReadTimeSec * 1000;
-}
-
-} // namespace progressive

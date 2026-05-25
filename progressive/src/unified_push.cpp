@@ -1,22 +1,9 @@
 #include "progressive/unified_push.hpp"
+#include <string>
 #include <nlohmann/json.hpp>
-
 namespace progressive {
-
 using json = nlohmann::json;
-
-bool unified_push_validate(const std::string& input) {
-    return !input.empty();
+bool unified_push_validate(const std::string& i) { return !i.empty(); }
+std::string unified_push_process(const std::string& i) { return i; }
+json unified_push_toJson(const std::string& i) { return json::object(); }
 }
-
-std::string unified_push_process(const std::string& input) {
-    return input;
-}
-
-json unified_push_toJson(const std::string& input) {
-    json j;
-    j["value"] = input;
-    return j;
-}
-
-} // namespace progressive

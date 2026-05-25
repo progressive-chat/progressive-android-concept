@@ -1,4 +1,5 @@
 #include "progressive/room_uploads.hpp"
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 

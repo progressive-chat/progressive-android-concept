@@ -1,4 +1,5 @@
 #include "progressive/http_client.hpp"
+#include <nlohmann/json.hpp>
 #include "progressive/tls_bridge.hpp"
 #include <cstring>
 #include <sstream>

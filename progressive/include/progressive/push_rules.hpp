@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_PUSH_RULES_HPP
 #define PROGRESSIVE_PUSH_RULES_HPP
 

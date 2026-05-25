@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_POWER_LEVELS_HPP
 #define PROGRESSIVE_POWER_LEVELS_HPP
 

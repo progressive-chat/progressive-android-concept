@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_KEY_BACKUP_HPP
 #define PROGRESSIVE_KEY_BACKUP_HPP
 

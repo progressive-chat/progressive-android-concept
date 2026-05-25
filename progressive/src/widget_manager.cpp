@@ -1,4 +1,5 @@
 #include "progressive/widget_manager.hpp"
+#include <nlohmann/json.hpp>
 #include "progressive/widget_utils.hpp"
 #include <sstream>
 #include <algorithm>

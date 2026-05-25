@@ -1,3 +1,9 @@
 #include "progressive/widget_event_utils.hpp"
-std::string buildWidgetApiRequest(const std::string&){return"{}";}
-std::string getWidgetIcon(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool widget_event_utils_validate(const std::string& i) { return !i.empty(); }
+std::string widget_event_utils_process(const std::string& i) { return i; }
+json widget_event_utils_toJson(const std::string& i) { return json::object(); }
+}

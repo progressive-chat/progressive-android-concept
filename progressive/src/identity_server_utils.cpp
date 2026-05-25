@@ -1,3 +1,9 @@
 #include "progressive/identity_server_utils.hpp"
-std::string buildIdServerBindRequest(const std::string&){return"{}";}
-std::string buildIdServerLookupRequest(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool identity_server_utils_validate(const std::string& i) { return !i.empty(); }
+std::string identity_server_utils_process(const std::string& i) { return i; }
+json identity_server_utils_toJson(const std::string& i) { return json::object(); }
+}

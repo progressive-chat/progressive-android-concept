@@ -1,3 +1,9 @@
 #include "progressive/url_render_utils.hpp"
-std::string buildUrlPreviewHtml(const std::string&){return"{}";}
-std::string formatUrlForDisplay(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool url_render_utils_validate(const std::string& i) { return !i.empty(); }
+std::string url_render_utils_process(const std::string& i) { return i; }
+json url_render_utils_toJson(const std::string& i) { return json::object(); }
+}

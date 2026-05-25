@@ -1,3 +1,9 @@
 #include "progressive/event_sender_utils.hpp"
-std::string getSenderDisplayName(const std::string&){return"{}";}
-std::string formatSenderAvatarUrl(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool event_sender_utils_validate(const std::string& i) { return !i.empty(); }
+std::string event_sender_utils_process(const std::string& i) { return i; }
+json event_sender_utils_toJson(const std::string& i) { return json::object(); }
+}

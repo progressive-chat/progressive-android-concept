@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_MASQUERADE_HPP
 #define PROGRESSIVE_MASQUERADE_HPP
 

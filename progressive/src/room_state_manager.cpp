@@ -1,4 +1,5 @@
 #include "progressive/room_state_manager.hpp"
+#include <nlohmann/json.hpp>
 #include "progressive/room_content.hpp"
 #include <sstream>
 #include <algorithm>

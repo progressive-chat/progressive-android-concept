@@ -1,4 +1,9 @@
 #include "progressive/message_link_utils.hpp"
-std::string buildMessageLink(const std::string&){return"{}";}
-std::string buildUserLink(const std::string&){return"{}";}
-std::string buildRoomLink(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool message_link_utils_validate(const std::string& i) { return !i.empty(); }
+std::string message_link_utils_process(const std::string& i) { return i; }
+json message_link_utils_toJson(const std::string& i) { return json::object(); }
+}

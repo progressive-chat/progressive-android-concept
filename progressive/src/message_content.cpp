@@ -1,4 +1,5 @@
 #include "progressive/message_content.hpp"
+#include <nlohmann/json.hpp>
 #include <cstring>
 
 namespace progressive {

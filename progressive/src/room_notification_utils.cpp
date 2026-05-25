@@ -1,4 +1,9 @@
 #include "progressive/room_notification_utils.hpp"
-std::string buildRoomNotifOverride(const std::string&){return"{}";}
-std::string buildRoomNotifRemove(const std::string&){return"{}";}
-std::string formatNotifLevel(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool room_notification_utils_validate(const std::string& i) { return !i.empty(); }
+std::string room_notification_utils_process(const std::string& i) { return i; }
+json room_notification_utils_toJson(const std::string& i) { return json::object(); }
+}

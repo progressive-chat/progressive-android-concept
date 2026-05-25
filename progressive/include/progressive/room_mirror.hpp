@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_ROOM_MIRROR_HPP
 #define PROGRESSIVE_ROOM_MIRROR_HPP
 

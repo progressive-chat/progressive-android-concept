@@ -1,4 +1,5 @@
 #include "progressive/auth_utils.hpp"
+#include <nlohmann/json.hpp>
 #include "progressive/json_parser.hpp"
 #include <sstream>
 #include <chrono>

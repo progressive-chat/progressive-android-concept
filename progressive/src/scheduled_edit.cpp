@@ -1,12 +1,9 @@
 #include "progressive/scheduled_edit.hpp"
+#include <string>
 #include <nlohmann/json.hpp>
-
 namespace progressive {
-
 using json = nlohmann::json;
-
-bool scheduled_edit_validate(const std::string& input) { return !input.empty(); }
-std::string scheduled_edit_process(const std::string& input) { return input; }
-json scheduled_edit_toJson(const std::string& input) { return json::object(); }
-
-} // namespace progressive
+bool scheduled_edit_validate(const std::string& i) { return !i.empty(); }
+std::string scheduled_edit_process(const std::string& i) { return i; }
+json scheduled_edit_toJson(const std::string& i) { return json::object(); }
+}

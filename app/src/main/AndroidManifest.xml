@@ -25,7 +25,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Progressive"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:extractNativeLibs="true">
 
         <activity
             android:name=".MainActivity"

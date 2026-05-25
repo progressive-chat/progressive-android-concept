@@ -1,2 +1,9 @@
 #include "progressive/event_forward_utils.hpp"
-std::string buildForwardContent(const std::string&){return"{}";}
+#include <string>
+#include <nlohmann/json.hpp>
+namespace progressive {
+using json = nlohmann::json;
+bool event_forward_utils_validate(const std::string& i) { return !i.empty(); }
+std::string event_forward_utils_process(const std::string& i) { return i; }
+json event_forward_utils_toJson(const std::string& i) { return json::object(); }
+}

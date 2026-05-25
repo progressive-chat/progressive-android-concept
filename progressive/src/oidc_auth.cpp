@@ -1,4 +1,5 @@
 #include "progressive/oidc_auth.hpp"
+#include <nlohmann/json.hpp>
 #include "progressive/http_client.hpp"
 #include "progressive/crypto_algorithms.hpp"
 #include "progressive/graph_utils.hpp"

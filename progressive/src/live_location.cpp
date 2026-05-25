@@ -1,4 +1,5 @@
 #include "progressive/live_location.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <algorithm>
 #include <cmath>

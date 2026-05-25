@@ -1,4 +1,5 @@
 #include "progressive/user_profile.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <chrono>
 

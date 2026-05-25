@@ -1,4 +1,5 @@
 #include "progressive/room_state.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 
 namespace progressive {

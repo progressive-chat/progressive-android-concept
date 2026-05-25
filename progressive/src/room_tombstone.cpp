@@ -1,4 +1,5 @@
 #include "progressive/room_tombstone.hpp"
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 

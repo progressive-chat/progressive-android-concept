@@ -1,8 +1,9 @@
 #include "progressive/event_highlight_display.hpp"
-#include <sstream>
-
+#include <string>
+#include <nlohmann/json.hpp>
 namespace progressive {
-std::string getHighlightColor(int c) { return c > 0 ? "#FF5722" : "#607D8B"; }
-std::string formatHighlightBadge(int c) { if (c <= 0) return ""; return c >= 1000 ? "999+" : std::to_string(c); }
-std::string getHighlightSoundHint() { return "content://settings/system/notification_sound"; }
-} // namespace progressive
+using json = nlohmann::json;
+bool event_highlight_display_validate(const std::string& i) { return !i.empty(); }
+std::string event_highlight_display_process(const std::string& i) { return i; }
+json event_highlight_display_toJson(const std::string& i) { return json::object(); }
+}

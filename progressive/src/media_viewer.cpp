@@ -1,4 +1,5 @@
 #include "progressive/media_viewer.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <algorithm>
 #include <cmath>

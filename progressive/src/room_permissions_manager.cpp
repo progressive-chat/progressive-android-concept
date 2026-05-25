@@ -1,4 +1,5 @@
 #include "progressive/room_permissions_manager.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <algorithm>
 

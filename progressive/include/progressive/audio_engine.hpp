@@ -1,3 +1,4 @@
+#include <nlohmann/json.hpp>
 #ifndef PROGRESSIVE_AUDIO_ENGINE_HPP
 #define PROGRESSIVE_AUDIO_ENGINE_HPP
 

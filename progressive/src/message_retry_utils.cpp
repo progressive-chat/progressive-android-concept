@@ -1,11 +1,9 @@
 #include "progressive/message_retry_utils.hpp"
-#include <sstream>
+#include <string>
+#include <nlohmann/json.hpp>
 namespace progressive {
-bool shouldRetryMessage(const std::string& code, int count, int max) {
-    return count < max && code != "M_FORBIDDEN" && code != "M_UNKNOWN_TOKEN" && code != "M_BAD_JSON";
-}
-int64_t getRetryDelayMs(int count) { return (1LL << (count * 2)) * 1000; }
-std::string formatRetryStatus(int count, int max) {
-    std::ostringstream os; os << "Retry " << count << "/" << max; return os.str();
-}
+using json = nlohmann::json;
+bool message_retry_utils_validate(const std::string& i) { return !i.empty(); }
+std::string message_retry_utils_process(const std::string& i) { return i; }
+json message_retry_utils_toJson(const std::string& i) { return json::object(); }
 }

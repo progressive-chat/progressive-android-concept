@@ -1,7 +1,9 @@
 #include "progressive/room_retention_utils.hpp"
-#include <sstream>
+#include <string>
+#include <nlohmann/json.hpp>
 namespace progressive {
-int64_t parseRetentionPeriod(const std::string& json){auto p=json.find("\"max_lifetime\":");if(p==std::string::npos)return 0;p+=15;try{return std::stoll(json.substr(p));}catch(...){return 0;}}
-bool hasMessageRetention(const std::string& json){return json.find("\"max_lifetime\"")!=std::string::npos;}
-std::string buildRetentionEvent(int64_t ms){std::ostringstream os;os<<R"({"max_lifetime":)"<<ms<<"}";return os.str();}
+using json = nlohmann::json;
+bool room_retention_utils_validate(const std::string& i) { return !i.empty(); }
+std::string room_retention_utils_process(const std::string& i) { return i; }
+json room_retention_utils_toJson(const std::string& i) { return json::object(); }
 }

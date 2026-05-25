@@ -1,4 +1,5 @@
 #include "progressive/event_relations_manager.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 
 namespace progressive {
