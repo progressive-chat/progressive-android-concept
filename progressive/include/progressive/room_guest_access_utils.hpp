@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseGuestAccess(const std::string& json);
-std::string isGuestAllowed(const std::string& json);
-std::string buildGuestAccessEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_guest_access_utils_validate(const std::string& input);
+std::string room_guest_access_utils_process(const std::string& input);
+json room_guest_access_utils_toJson(const std::string& input);
+
+} // namespace progressive

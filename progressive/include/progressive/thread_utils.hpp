@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseThreadInfo(const std::string& json);
-std::string buildThreadRoot(const std::string& json);
-std::string getThreadParent(const std::string& json);
-std::string countThreadMessages(const std::string& json);
-std::string sortThreadsByActivity(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool thread_utils_validate(const std::string& input);
+std::string thread_utils_process(const std::string& input);
+json thread_utils_toJson(const std::string& input);
+
+} // namespace progressive

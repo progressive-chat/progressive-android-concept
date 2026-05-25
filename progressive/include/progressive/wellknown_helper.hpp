@@ -1,28 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct WellKnownResult {
-    std::string baseUrl;            // homeserver base URL
-    std::string identityServer;     // identity server URL
-    bool isValid = false;
-    std::string error;
-};
+using json = nlohmann::json;
 
-// Parse .well-known response
-WellKnownResult parseWellKnown(const std::string& json);
-
-// Build .well-known request URL
-std::string buildWellKnownUrl(const std::string& domain);
-
-// Check if server supports a feature from .well-known
-bool supportsFeature(const std::string& json, const std::string& feature);
-
-// Extract homeserver URL from MXID
-std::string extractServerFromMxid(const std::string& mxid);
-
-// Build login URL from well-known
-std::string buildLoginUrl(const WellKnownResult& wellKnown);
+bool wellknown_helper_validate(const std::string& input);
+std::string wellknown_helper_process(const std::string& input);
+json wellknown_helper_toJson(const std::string& input);
 
 } // namespace progressive

@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseJoinRules(const std::string& json);
-std::string isPublicRoom(const std::string& json);
-std::string buildJoinRulesEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_join_rules_utils_validate(const std::string& input);
+std::string room_join_rules_utils_process(const std::string& input);
+json room_join_rules_utils_toJson(const std::string& input);
+
+} // namespace progressive

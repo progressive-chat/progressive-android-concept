@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string shouldRetain(const std::string& json);
-std::string getRetentionPeriod(const std::string& json);
-std::string pruneOldEvents(const std::string& json);
-std::string calculateAge(const std::string& json);
-std::string buildRetentionPolicy(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_retention_validate(const std::string& input);
+std::string event_retention_process(const std::string& input);
+json event_retention_toJson(const std::string& input);
+
+} // namespace progressive

@@ -21,7 +21,6 @@
     <application
         android:name=".ProgressiveApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="Progressive Chat"
         android:supportsRtl="true"
         android:theme="@style/Theme.Progressive"

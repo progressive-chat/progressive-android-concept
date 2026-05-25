@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildReport(const std::string& json);
-std::string parseReportResponse(const std::string& json);
-std::string validateReportReason(const std::string& json);
-std::string getReportCategories(const std::string& json);
-std::string formatReportNotice(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool content_report_utils_validate(const std::string& input);
+std::string content_report_utils_process(const std::string& input);
+json content_report_utils_toJson(const std::string& input);
+
+} // namespace progressive

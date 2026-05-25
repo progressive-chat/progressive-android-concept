@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseApiCall(const std::string& json);
-std::string buildApiResponse(const std::string& json);
-std::string validateApiMethod(const std::string& json);
-std::string getSupportedApis(const std::string& json);
-std::string formatApiError(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool widget_api_utils_validate(const std::string& input);
+std::string widget_api_utils_process(const std::string& input);
+json widget_api_utils_toJson(const std::string& input);
+
+} // namespace progressive

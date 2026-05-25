@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getMasterKeyStatus(const std::string& json);
-std::string isCrossSigningReady(const std::string& json);
-std::string getSSSSStatus(const std::string& json);
-std::string formatCrossSigningBanner(const std::string& json);
-std::string needsSetup(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool cross_signing_status_validate(const std::string& input);
+std::string cross_signing_status_process(const std::string& input);
+json cross_signing_status_toJson(const std::string& input);
+
+} // namespace progressive

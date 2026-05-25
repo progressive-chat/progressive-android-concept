@@ -1,504 +1,139 @@
 #include "progressive/room_stats.hpp"
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
 #include <sstream>
-#include <chrono>
-#include <mutex>
-#include <nlohmann/json.hpp>
-#include <android/log.h>
-
-#define LOG_TAG "RoomStats"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-using json = nlohmann::json;
+#include <unordered_set>
+#include <algorithm>
+#include <ctime>
 
 namespace progressive {
 
-namespace {
-// String utilities
-static std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-}
+RoomStats computeRoomStats(
+    const std::string& roomId,
+    const std::vector<std::string>& eventTypes,
+    const std::vector<std::string>& msgTypes,
+    const std::vector<std::string>& senders,
+    const std::vector<int64_t>& timestamps,
+    const std::vector<bool>& encrypted,
+    const std::vector<bool>& redacted,
+    const std::vector<std::string>& bodies
+) {
+    RoomStats stats;
+    stats.roomId = roomId;
+    stats.totalEvents = static_cast<int>(eventTypes.size());
 
-static std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) result.push_back(item);
-    return result;
-}
+    std::unordered_set<std::string> uniqueSendersSet;
+    int64_t totalChars = 0;
+    int bodiesWithText = 0;
 
-static std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return r;
-}
+    for (size_t i = 0; i < eventTypes.size(); ++i) {
+        const auto& et = i < eventTypes.size() ? eventTypes[i] : "";
 
-static bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
-}
+        if (et == "m.room.message" || et == "m.room.encrypted") {
+            const auto& mt = i < msgTypes.size() ? msgTypes[i] : "";
+            if (mt == "m.text" || mt.empty()) stats.textMessages++;
+            else if (mt == "m.image") stats.imageMessages++;
+            else if (mt == "m.video") stats.videoMessages++;
+            else if (mt == "m.file") stats.fileMessages++;
+            else if (mt == "m.audio") stats.audioMessages++;
+            else if (mt == "m.emote") stats.emoteMessages++;
+        }
 
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
+        if (et == "m.reaction") stats.reactionEvents++;
+        if (et == "m.room.member") stats.memberEvents++;
 
-static std::string replaceAll(std::string s, const std::string& from,
-                                const std::string& to) {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
+        if (i < encrypted.size() && encrypted[i]) stats.encryptedEvents++;
+        if (i < redacted.size() && redacted[i]) stats.redactedEvents++;
+
+        if (i < senders.size()) uniqueSendersSet.insert(senders[i]);
+
+        const auto& body = i < bodies.size() ? bodies[i] : "";
+        if (!body.empty()) {
+            totalChars += body.size();
+            bodiesWithText++;
+        }
     }
-    return s;
-}
 
-static bool isValidMatrixId(const std::string& id) {
-    return !id.empty() && id.size() <= 255 && id.find(' ') == std::string::npos;
-}
+    stats.uniqueSenders = static_cast<int>(uniqueSendersSet.size());
+    stats.avgMessageLength = bodiesWithText > 0 ? static_cast<int>(totalChars / bodiesWithText) : 0;
+    stats.totalBodyChars = totalChars;
 
-static uint64_t currentTimeMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-}
+    if (!timestamps.empty()) {
+        stats.firstEventTs = *std::min_element(timestamps.begin(), timestamps.end());
+        stats.lastEventTs = *std::max_element(timestamps.begin(), timestamps.end());
+        stats.messagesPerDay = computeMessagesPerDay(stats.totalEvents, stats.firstEventTs, stats.lastEventTs);
 
-static std::string generateTxnId() {
-    static std::atomic<uint64_t> counter0;
-    return "txn_" + std::to_string(currentTimeMs()) + "_" +
-           std::to_string(counter.fetch_add(1));
-}
-
-} // anonymous namespace
-
-// ==== RoomStats Implementation ====
-// Translated from Kotlin: room_stats.kt
-
-RoomStats::RoomStats() {
-    LOGI("RoomStats constructor");
-}
-
-RoomStats::RoomStats(const json& config) {
-    LOGI("RoomStats constructor with config");
-    configure(config);
-}
-
-RoomStats::~RoomStats() {
-    onDestroy();
-    LOGI("RoomStats destructor");
-}
-
-bool RoomStats::initialize() {
-    LOGI("RoomStats::initialize");
-    if (m_initialized) return true;
-    m_initialized = true;
-    return true;
-}
-
-void RoomStats::configure(const json& config) {
-    if (config.empty()) return;
-    m_config = config;
-    LOGI("RoomStats::configure - config loaded");
-}
-
-void RoomStats::reset() {
-    LOGW("RoomStats::reset");
-    m_lastError.clear();
-}
-
-void RoomStats::setEnabled(bool enabled) {
-    if (m_enabled != enabled) {
-        m_enabled = enabled;
-        LOGI("RoomStats: enabled = %d", enabled);
+        auto [hour, count] = findBusiestHour(timestamps);
+        std::ostringstream hourStr;
+        hourStr << (hour < 10 ? "0" : "") << hour << ":00"
+                << "-" << (hour + 1 < 10 ? "0" : "") << (hour + 1) << ":00";
+        stats.busiestHour = hourStr.str();
+        stats.busiestHourCount = count;
     }
+
+    return stats;
 }
 
-bool RoomStats::isEnabled() const {
-    return m_enabled;
+double computeMessagesPerDay(int eventCount, int64_t firstTs, int64_t lastTs) {
+    if (firstTs <= 0 || lastTs <= firstTs) return 0.0;
+    double days = static_cast<double>(lastTs - firstTs) / (1000.0 * 86400.0);
+    if (days < 1.0) days = 1.0;
+    return static_cast<double>(eventCount) / days;
 }
 
-std::string RoomStats::getStatus() const {
-    json status;
-    status["class"] = "RoomStats";
-    status["initialized"] = m_initialized;
-    status["enabled"] = m_enabled;
-    return status.dump();
+std::pair<int, int> findBusiestHour(const std::vector<int64_t>& timestamps) {
+    std::vector<int> hourCounts(24, 0);
+    for (int64_t ts : timestamps) {
+        if (ts <= 0) continue;
+        time_t t = ts / 1000;
+        struct tm result;
+        gmtime_r(&t, &result);
+        hourCounts[result.tm_hour]++;
+    }
+
+    int maxHour = 0, maxCount = 0;
+    for (int h = 0; h < 24; ++h) {
+        if (hourCounts[h] > maxCount) {
+            maxCount = hourCounts[h];
+            maxHour = h;
+        }
+    }
+    return {maxHour, maxCount};
 }
 
-json RoomStats::toJson() const {
-    json j;
-    j["type"] = "RoomStats";
-    j["enabled"] = m_enabled;
-    j["initialized"] = m_initialized;
-    return j;
+std::string roomStatsToJson(const RoomStats& stats) {
+    std::ostringstream json;
+    json << "{";
+    json << R"("roomId": ")" << stats.roomId << R"(",)";
+    json << R"("totalEvents": )" << stats.totalEvents << ",";
+    json << R"("textMessages": )" << stats.textMessages << ",";
+    json << R"("imageMessages": )" << stats.imageMessages << ",";
+    json << R"("videoMessages": )" << stats.videoMessages << ",";
+    json << R"("fileMessages": )" << stats.fileMessages << ",";
+    json << R"("audioMessages": )" << stats.audioMessages << ",";
+    json << R"("reactionEvents": )" << stats.reactionEvents << ",";
+    json << R"("memberEvents": )" << stats.memberEvents << ",";
+    json << R"("encryptedEvents": )" << stats.encryptedEvents << ",";
+    json << R"("messagesPerDay": )" << stats.messagesPerDay << ",";
+    json << R"("uniqueSenders": )" << stats.uniqueSenders << ",";
+    json << R"("busiestHour": ")" << stats.busiestHour << R"(",)";
+    json << R"("avgMessageLength": )" << stats.avgMessageLength;
+    json << "}";
+    return json.str();
 }
 
-bool RoomStats::fromJson(const json& j) {
-    if (j.empty()) return false;
-    m_enabled = j.value("enabled", true);
-    return true;
-}
-
-std::string RoomStats::lastError() const {
-    return m_lastError;
-}
-
-void RoomStats::setError(const std::string& error) {
-    m_lastError = error;
-    LOGE("RoomStats: %s", error.c_str());
-    if (m_errorCallback) m_errorCallback(error);
-}
-
-void RoomStats::onUpdate(std::function<void(const json&)> cb) {
-    m_updateCallback = std::move(cb);
-}
-
-void RoomStats::onError(std::function<void(const std::string&)> cb) {
-    m_errorCallback = std::move(cb);
-}
-
-void RoomStats::notifyUpdate(const json& data) {
-    if (m_updateCallback) m_updateCallback(data);
-}
-
-void RoomStats::onPause() {
-    LOGI("RoomStats::onPause");
-    m_paused = true;
-}
-
-void RoomStats::onResume() {
-    LOGI("RoomStats::onResume");
-    m_paused = false;
-}
-
-void RoomStats::onDestroy() {
-    LOGI("RoomStats::onDestroy");
-    m_updateCallback = nullptr;
-    m_errorCallback = nullptr;
-}
-
-// ==== Room methods ====
-
-bool RoomStats::joinRoom(const std::string& roomId) {
-    if (!isValidMatrixId(roomId)) { setError("Invalid room ID"); return false; }
-    LOGI("Joining room: %s", roomId.c_str());
-    return true;
-}
-
-bool RoomStats::leaveRoom(const std::string& roomId) {
-    LOGI("Leaving room: %s", roomId.c_str());
-    return true;
-}
-
-bool RoomStats::inviteUser(const std::string& roomId, const std::string& userId) {
-    if (roomId.empty() || userId.empty()) return false;
-    LOGI("Inviting %s to %s", userId.c_str(), roomId.c_str());
-    return true;
-}
-
-bool RoomStats::kickUser(const std::string& roomId, const std::string& userId,
-                              const std::string& reason) {
-    LOGI("Kicking %s from %s: %s", userId.c_str(), roomId.c_str(), reason.c_str());
-    return true;
-}
-
-// ==== Cache management ====
-
-void RoomStats::clearCache() {
-    LOGI("Clearing cache");
-    m_cache.clear();
-}
-
-void RoomStats::flushCache() {
-    LOGI("Flushing cache");
-}
-
-size_t RoomStats::cacheSize() const {
-    return m_cache.size();
-}
-
-// ==== Diagnostics ====
-
-std::string RoomStats::diagnostics() const {
-    json diag;
-    diag["class"] = "RoomStats";
-    diag["initialized"] = m_initialized;
-    diag["enabled"] = m_enabled;
-    diag["paused"] = m_paused;
-    diag["timestamp"] = currentTimeMs();
-    return diag.dump(2);
-}
-
-void RoomStats::dumpState() const {
-    LOGI("State dump: %s", diagnostics().c_str());
-}
-
-void RoomStats::lock() {
-    m_mutex.lock();
-}
-
-void RoomStats::unlock() {
-    m_mutex.unlock();
-}
-
-bool RoomStats::tryLock() {
-    return m_mutex.try_lock();
-}
-
-// ==== Batch operations ====
-
-void RoomStats::beginBatch() {
-    m_batchMode = true;
-}
-
-void RoomStats::endBatch() {
-    m_batchMode = false;
-    notifyUpdate(json::object());
-}
-
-bool RoomStats::isBatchMode() const {
-    return m_batchMode;
+std::string roomStatsToText(const RoomStats& stats) {
+    std::ostringstream out;
+    out << "Room Statistics\n";
+    out << "===============\n";
+    out << "Total events: " << stats.totalEvents << "\n";
+    out << "Text: " << stats.textMessages << "  Images: " << stats.imageMessages
+        << "  Video: " << stats.videoMessages << "  Files: " << stats.fileMessages << "\n";
+    out << "Reactions: " << stats.reactionEvents << "  Members: " << stats.memberEvents << "\n";
+    out << "Encrypted: " << stats.encryptedEvents << "  Redacted: " << stats.redactedEvents << "\n";
+    out << "Unique senders: " << stats.uniqueSenders << "\n";
+    out << "Messages/day: " << stats.messagesPerDay << "\n";
+    out << "Busiest hour: " << stats.busiestHour << " (" << stats.busiestHourCount << " msgs)\n";
+    out << "Avg message length: " << stats.avgMessageLength << " chars\n";
+    return out.str();
 }
 
 } // namespace progressive
-
-
-
-// ==== Extended room_stats implementation ====
-// Additional methods and utilities generated for completeness
-
-// Serialization helpers
-std::string room_stats::serialize() const {
-    json j = toJson();
-    return j.dump();
-}
-
-bool room_stats::deserialize(const std::string& data) {
-    if (data.empty()) return false;
-    try {
-        json j = json::parse(data);
-        return fromJson(j);
-    } catch (...) {
-        setError("Failed to deserialize data");
-        return false;
-    }
-}
-
-// Validation helpers
-bool room_stats::validate() const {
-    if (!m_initialized) {
-        LOGE("room_stats: not initialized");
-        return false;
-    }
-    return true;
-}
-
-// Storage helpers
-bool room_stats::save(const std::string& path) const {
-    std::string data = serialize();
-    if (data.empty()) return false;
-    std::ofstream f(path);
-    if (!f) return false;
-    f << data;
-    return true;
-}
-
-bool room_stats::load(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) return false;
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return deserialize(ss.str());
-}
-
-// Metrics and statistics
-json room_stats::getMetrics() const {
-    json m;
-    m["class"] = "room_stats";
-    m["initialized"] = m_initialized;
-    m["enabled"] = m_enabled;
-    m["paused"] = m_paused;
-    m["timestamp"] = currentTimeMs();
-    return m;
-}
-
-int room_stats::getOperationCount() const {
-    return m_operationCount;
-}
-
-void room_stats::resetOperationCount() {
-    m_operationCount = 0;
-}
-
-// Event emission
-void room_stats::emitEvent(const std::string& eventType, const json& data) {
-    json event;
-    event["type"] = eventType;
-    event["source"] = "room_stats";
-    event["data"] = data;
-    event["timestamp"] = currentTimeMs();
-    notifyUpdate(event);
-}
-
-// Policy checking
-bool room_stats::checkPolicy(const std::string& policy, const json& context) {
-    (void)policy;
-    (void)context;
-    return true;
-}
-
-// Access control
-bool room_stats::canAccess(const std::string& userId, const std::string& resource) {
-    (void)userId;
-    (void)resource;
-    return true;
-}
-
-// Rate limiting
-bool room_stats::checkRateLimit(const std::string& key, int maxRequests, int windowMs) {
-    auto now = currentTimeMs();
-    auto& window = m_rateLimitWindows[key];
-    if (now - window.startTime > windowMs) {
-        window.startTime = now;
-        window.count = 0;
-    }
-    if (window.count >= maxRequests) return false;
-    window.count++;
-    return true;
-}
-
-// Observation pattern
-void room_stats::addObserver(const std::string& observerId) {
-    m_observers.insert(observerId);
-}
-
-void room_stats::removeObserver(const std::string& observerId) {
-    m_observers.erase(observerId);
-}
-
-int room_stats::observerCount() const {
-    return static_cast<int>(m_observers.size());
-}
-
-void room_stats::notifyObservers(const json& data) {
-    notifyUpdate(data);
-}
-
-// Factory pattern
-std::shared_ptr<void> room_stats::createInstance() {
-    return nullptr;
-}
-
-// Iterator pattern
-std::vector<std::string> room_stats::listItems() const {
-    return {};
-}
-
-int room_stats::itemCount() const {
-    return 0;
-}
-
-// Versioning
-std::string room_stats::getVersion() const {
-    return "1.0.0";
-}
-
-bool room_stats::checkVersion(const std::string& requiredVersion) {
-    return getVersion() >= requiredVersion;
-}
-
-// Feature flags
-bool room_stats::isFeatureEnabled(const std::string& feature) const {
-    auto it = m_features.find(feature);
-    return it != m_features.end() && it->second;
-}
-
-void room_stats::setFeature(const std::string& feature, bool enabled) {
-    m_features[feature] = enabled;
-}
-
-std::vector<std::string> room_stats::getEnabledFeatures() const {
-    std::vector<std::string> result;
-    for (auto& [feature, enabled] : m_features) {
-        if (enabled) result.push_back(feature);
-    }
-    return result;
-}
-
-// Data migration
-bool room_stats::migrateData(int fromVersion, int toVersion) {
-    LOGI("room_stats: migrating data from v%d to v%d", fromVersion, toVersion);
-    return true;
-}
-
-int room_stats::getDataVersion() const {
-    return m_dataVersion;
-}
-
-// Import/Export
-json room_stats::exportData() const {
-    return toJson();
-}
-
-bool room_stats::importData(const json& data) {
-    return fromJson(data);
-}
-
-// Cleanup
-void room_stats::performCleanup() {
-    LOGI("room_stats: performing cleanup");
-    m_cache.clear();
-    m_observers.clear();
-    m_features.clear();
-    m_rateLimitWindows.clear();
-}
-
-// Memory management
-size_t room_stats::memoryUsage() const {
-    size_t usage = sizeof(*this);
-    usage += m_cache.size() * sizeof(std::string) * 100;
-    usage += m_observers.size() * sizeof(std::string) * 50;
-    usage += m_features.size() * (sizeof(std::string) + sizeof(bool));
-    return usage;
-}
-
-// Transaction support
-bool room_stats::beginTransaction() {
-    if (m_inTransaction) return false;
-    m_inTransaction = true;
-    m_transactionData = json::object();
-    return true;
-}
-
-bool room_stats::commitTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    notifyUpdate(m_transactionData);
-    return true;
-}
-
-bool room_stats::rollbackTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    m_transactionData = json::object();
-    return true;
-}
-
-// Logging helpers
-void room_stats::logDebug(const std::string& msg) const {
-    LOGI("room_stats: %s", msg.c_str());
-}
-
-void room_stats::logWarning(const std::string& msg) const {
-    LOGW("room_stats: %s", msg.c_str());
-}
-
-void room_stats::logError(const std::string& msg) const {
-    LOGE("room_stats: %s", msg.c_str());
-}

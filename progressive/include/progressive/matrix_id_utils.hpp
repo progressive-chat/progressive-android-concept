@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string validateUserId(const std::string& json);
-std::string parseUserId(const std::string& json);
-std::string buildUserId(const std::string& json);
-std::string formatMxid(const std::string& json);
-std::string normalizeUserId(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool matrix_id_utils_validate(const std::string& input);
+std::string matrix_id_utils_process(const std::string& input);
+json matrix_id_utils_toJson(const std::string& input);
+
+} // namespace progressive

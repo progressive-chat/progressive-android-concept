@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string computeThumbnailSize(const std::string& json);
-std::string generateThumbnailUrl(const std::string& json);
-std::string parseThumbnailInfo(const std::string& json);
-std::string getBestThumbnail(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool thumbnail_utils_validate(const std::string& input);
+std::string thumbnail_utils_process(const std::string& input);
+json thumbnail_utils_toJson(const std::string& input);
+
+} // namespace progressive

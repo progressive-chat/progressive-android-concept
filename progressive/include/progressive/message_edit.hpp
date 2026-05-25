@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string canEdit(const std::string& json);
-std::string parseEditInfo(const std::string& json);
-std::string getEditDiff(const std::string& json);
-std::string formatEditNotice(const std::string& json);
-std::string getLatestEdit(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool message_edit_validate(const std::string& input);
+std::string message_edit_process(const std::string& input);
+json message_edit_toJson(const std::string& input);
+
+} // namespace progressive

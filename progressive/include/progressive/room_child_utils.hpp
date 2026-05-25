@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseChildRoomId(const std::string& json);
-std::string getChildrenRooms(const std::string& json);
-std::string buildChildEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_child_utils_validate(const std::string& input);
+std::string room_child_utils_process(const std::string& input);
+json room_child_utils_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseSuggestedRole(const std::string& json);
-std::string getDefaultRole(const std::string& json);
-std::string buildRoleSuggestion(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_role_utils_validate(const std::string& input);
+std::string room_role_utils_process(const std::string& input);
+json room_role_utils_toJson(const std::string& input);
+
+} // namespace progressive

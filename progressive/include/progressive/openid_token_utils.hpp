@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseOpenIdToken(const std::string& json);
-std::string buildOpenIdRequest(const std::string& json);
-std::string validateToken(const std::string& json);
-std::string getMatrixId(const std::string& json);
-std::string formatTokenInfo(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool openid_token_utils_validate(const std::string& input);
+std::string openid_token_utils_process(const std::string& input);
+json openid_token_utils_toJson(const std::string& input);
+
+} // namespace progressive

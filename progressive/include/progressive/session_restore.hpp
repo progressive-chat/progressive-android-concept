@@ -2,34 +2,14 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct SessionData {
-    std::string userId;
-    std::string accessToken;
-    std::string deviceId;
-    std::string homeServer;
-    std::string refreshToken;
-    int64_t lastActiveMs = 0;
-};
+using json = nlohmann::json;
 
-// Serialize session data for storage
-std::string serializeSession(const SessionData& data);
-
-// Deserialize session data
-SessionData deserializeSession(const std::string& json);
-
-// Check if session is expired (token invalid, needs re-auth)
-bool isSessionExpired(const std::string& errorResponse);
-
-// Extract session data from login response
-SessionData extractSessionFromLogin(const std::string& loginResponseJson);
-
-// Build session storage key
-std::string buildSessionKey(const std::string& userId, const std::string& deviceId);
-
-// Format session info for display
-std::string formatSessionInfo(const SessionData& data);
+bool session_restore_validate(const std::string& input);
+std::string session_restore_process(const std::string& input);
+json session_restore_toJson(const std::string& input);
 
 } // namespace progressive

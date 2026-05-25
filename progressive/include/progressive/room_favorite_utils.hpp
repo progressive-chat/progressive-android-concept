@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
+
 namespace progressive {
-std::string buildFavoriteTag(bool favorite, double order=0.0);
-std::string buildLowPriorityTag(bool lowPriority);
-bool isFavoritedTag(const std::string& json);
-bool isLowPriorityTag(const std::string& json);
-}
+
+using json = nlohmann::json;
+
+bool room_favorite_utils_validate(const std::string& input);
+std::string room_favorite_utils_process(const std::string& input);
+json room_favorite_utils_toJson(const std::string& input);
+
+} // namespace progressive

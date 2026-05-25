@@ -1,21 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string formatMessageBody(const std(const std::string& json);
-std::string string& body, const std(const std::string& json);
-std::string string& formattedBody,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& myUserId,(const std::string& json);
-std::string formatNotificationBody(const std(const std::string& json);
-std::string string& body, int maxLen = 200);(const std::string& json);
-std::string formatMessageSender(const std(const std::string& json);
-std::string string& displayName, const std(const std::string& json);
-std::string string& userId,(const std::string& json);
-std::string buildMentionPill(const std(const std::string& json);
-std::string string& userId, const std(const std::string& json);
-std::string string& displayName);(const std::string& json);
-std::string int countEmoji(const std(const std::string& json);
-std::string string& text);(const std::string& json);
-std::string bool isOnlyEmoji(const std(const std::string& json);
-std::string string& text);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool message_format_helper_validate(const std::string& input);
+std::string message_format_helper_process(const std::string& input);
+json message_format_helper_toJson(const std::string& input);
+
+} // namespace progressive

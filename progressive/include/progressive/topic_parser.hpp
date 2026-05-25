@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseTopic(const std::string& json);
-std::string extractTopicLinks(const std::string& json);
-std::string formatTopicHtml(const std::string& json);
-std::string truncateTopic(const std::string& json);
-std::string getTopicFallback(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool topic_parser_validate(const std::string& input);
+std::string topic_parser_process(const std::string& input);
+json topic_parser_toJson(const std::string& input);
+
+} // namespace progressive

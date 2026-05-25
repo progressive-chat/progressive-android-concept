@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseReadReceipt(const std::string& json);
-std::string buildReceiptEvent(const std::string& json);
-std::string getReadPosition(const std::string& json);
-std::string getUnreadCount(const std::string& json);
-std::string formatReceiptAck(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool read_receipt_utils_validate(const std::string& input);
+std::string read_receipt_utils_process(const std::string& input);
+json read_receipt_utils_toJson(const std::string& input);
+
+} // namespace progressive

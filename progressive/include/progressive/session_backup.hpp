@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string encryptSession(const std::string& json);
-std::string decryptSession(const std::string& json);
-std::string getBackupVersion(const std::string& json);
-std::string isExpiredBackup(const std::string& json);
-std::string buildBackupMetadata(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool session_backup_validate(const std::string& input);
+std::string session_backup_process(const std::string& input);
+json session_backup_toJson(const std::string& input);
+
+} // namespace progressive

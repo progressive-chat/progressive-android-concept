@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getSupportedVersions(const std::string& json);
-std::string checkFeature(const std::string& json);
-std::string isDeprecated(const std::string& json);
-std::string getMinimumVersion(const std::string& json);
-std::string formatServerInfo(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool server_support_validate(const std::string& input);
+std::string server_support_process(const std::string& input);
+json server_support_toJson(const std::string& input);
+
+} // namespace progressive

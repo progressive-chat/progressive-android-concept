@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string discoverHomeserver(const std::string& json);
-std::string parseWellKnown(const std::string& json);
-std::string getIdentityServer(const std::string& json);
-std::string validateServerCert(const std::string& json);
-std::string cacheDiscovery(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool server_discovery_validate(const std::string& input);
+std::string server_discovery_process(const std::string& input);
+json server_discovery_toJson(const std::string& input);
+
+} // namespace progressive

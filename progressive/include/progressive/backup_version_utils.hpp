@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseBackupVersion(const std::string& json);
-std::string createBackupVersion(const std::string& json);
-std::string deleteBackupVersion(const std::string& json);
-std::string getLatestVersion(const std::string& json);
-std::string formatBackupInfo(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool backup_version_utils_validate(const std::string& input);
+std::string backup_version_utils_process(const std::string& input);
+json backup_version_utils_toJson(const std::string& input);
+
+} // namespace progressive

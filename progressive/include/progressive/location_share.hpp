@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseLocationEvent(const std::string& json);
-std::string isLiveLocation(const std::string& json);
-std::string getExpiryTimestamp(const std::string& json);
-std::string buildLocationUpdate(const std::string& json);
-std::string formatLocationPin(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool location_share_validate(const std::string& input);
+std::string location_share_process(const std::string& input);
+json location_share_toJson(const std::string& input);
+
+} // namespace progressive

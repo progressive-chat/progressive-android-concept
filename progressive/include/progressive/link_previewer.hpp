@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseLinkMetadata(const std::string& json);
-std::string getOgpTags(const std::string& json);
-std::string isPreviewable(const std::string& json);
-std::string formatPreviewHtml(const std::string& json);
-std::string cachePreview(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool link_previewer_validate(const std::string& input);
+std::string link_previewer_process(const std::string& input);
+json link_previewer_toJson(const std::string& input);
+
+} // namespace progressive

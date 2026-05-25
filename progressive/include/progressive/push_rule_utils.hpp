@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parsePushRule(const std::string& json);
-std::string matchPushRule(const std::string& json);
-std::string buildPushRuleEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool push_rule_utils_validate(const std::string& input);
+std::string push_rule_utils_process(const std::string& input);
+json push_rule_utils_toJson(const std::string& input);
+
+} // namespace progressive

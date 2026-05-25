@@ -1,14 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildJoinRequest(const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& viaServers = {});(const std::string& json);
-std::string buildJoinByAlias(const std(const std::string& json);
-std::string string& alias, const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& via = {});(const std::string& json);
-std::string parseJoinResponse(const std::string& json);
-std::string formatJoinConfirmation(const std(const std::string& json);
-std::string string& roomId);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_join_utils_validate(const std::string& input);
+std::string room_join_utils_process(const std::string& input);
+json room_join_utils_toJson(const std::string& input);
+
+} // namespace progressive

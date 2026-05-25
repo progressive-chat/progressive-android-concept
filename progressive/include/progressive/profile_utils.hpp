@@ -1,17 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string userId;(const std::string& json);
-std::string displayName;(const std::string& json);
-std::string avatarUrl;(const std::string& json);
-std::string buildProfileRequest();(const std::string& json);
-std::string UserProfile parseProfile(const std(const std::string& json);
-std::string string& json, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string buildProfileUpdate(const UserProfile& profile);(const std::string& json);
-std::string buildDisplayNameChange(const std(const std::string& json);
-std::string string& newName);(const std::string& json);
-std::string buildAvatarUrlChange(const std(const std::string& json);
-std::string string& mxcUrl);(const std::string& json);
-std::string formatProfileSummary(const UserProfile& profile);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool profile_utils_validate(const std::string& input);
+std::string profile_utils_process(const std::string& input);
+json profile_utils_toJson(const std::string& input);
+
+} // namespace progressive

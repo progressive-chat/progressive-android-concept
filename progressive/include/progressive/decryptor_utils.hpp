@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
+#include <functional>
+#include <utility>
 
 namespace progressive {
 
@@ -14,6 +16,34 @@ namespace progressive {
 //   - requestDecryption(): dedup, skip unknown-session failures
 //   - processDecryptRequest(): decrypt or mark thread-aware
 //   - newSessionListener: re-enqueue failed decryptions on new Olm session
+
+enum class DecryptionPriority { NORMAL = 0, HIGH = 1, CRITICAL = 2 };
+
+struct DecryptionQueueEntry {
+    std::string eventId; std::string roomId;
+    DecryptionPriority priority = DecryptionPriority::NORMAL;
+    int64_t enqueueTimeMs = 0; int retryCount = 0; int attemptCount = 0;
+};
+
+class DecryptionQueue {
+public:
+    struct QueueCmp { bool operator()(const DecryptionQueueEntry& a, const DecryptionQueueEntry& b) const; };
+    bool enqueue(const std::string& eventId, const std::string& roomId, DecryptionPriority priority = DecryptionPriority::NORMAL);
+    DecryptionQueueEntry dequeue(); void requeue(const DecryptionQueueEntry& entry);
+    void cancel(const std::string& eventId); size_t size() const; bool isEmpty() const;
+    bool hasPendingForRoom(const std::string& roomId) const;
+    void registerUnknownSessionFailure(const std::string& sessionId, const std::string& eventId);
+    std::vector<std::string> onNewSessionAvailable(const std::string& sessionId);
+    bool isUnknownSession(const std::string& sessionId) const;
+    std::vector<std::string> getUnknownSessionIds() const; void clear();
+private:
+    std::vector<DecryptionQueueEntry> queue_;
+    std::unordered_set<std::string> existingRequests_;
+    std::unordered_map<std::string, std::vector<std::string>> unknownSessionsFailure_;
+};
+
+using SessionCheckFn = std::function<bool(const std::string& sessionId)>;
+using DecryptFn = std::function<std::pair<std::string,std::string>(const std::string&, const std::string&)>;
 
 struct DecryptionRequest {
     std::string eventId;
@@ -48,28 +78,11 @@ struct DecryptorState {
 };
 
 // Original Kotlin: deduplication check before enqueueing
-inline bool shouldDecrypt(const DecryptorState& state, const DecryptionRequest& req) {
-    if (state.existingRequests.count(req.eventId)) return false;
-    // Check if this session is already known to fail
-    // (sessionId extracted from contentJson's EncryptedEventContent)
-    return true;
-}
+bool shouldDecrypt(const DecryptorState& state, const DecryptionRequest& req);
 
 // Original Kotlin: when a new Olm session arrives, re-enqueue previously failed events
 // fun onNewSession(sessionId) { unknownSessionsFailure.remove(sessionId); re-enqueue events }
-inline std::vector<DecryptionRequest> onNewSession(DecryptorState& state, const std::string& sessionId) {
-    state.unknownSessionsFailure.erase(sessionId);
-    std::vector<DecryptionRequest> retry;
-    auto it = state.sessionToEvents.find(sessionId);
-    if (it != state.sessionToEvents.end()) {
-        for (const auto& eventId : it->second) {
-            state.existingRequests.insert(eventId);
-            // In real impl: retry.push_back(buildRequest(eventId))
-        }
-        state.sessionToEvents.erase(it);
-    }
-    return retry;
-}
+std::vector<DecryptionRequest> onNewSession(DecryptorState& state, const std::string& sessionId);
 
 // ==== Room Avatar Resolver ====
 //
@@ -107,50 +120,7 @@ struct RoomMemberInfo {
 //   }
 //   return null
 
-inline std::string resolveRoomAvatar(
-    const std::string& roomAvatarUrl,         // from m.room.avatar state event
-    bool isDirect,
-    const std::vector<RoomMemberInfo>& activeMembers,
-    const std::vector<RoomMemberInfo>& leftMembers,
-    const std::vector<std::string>& excludedUserIds,
-    const std::string& currentUserId)
-{
-    // Original Kotlin: try state event avatar first
-    if (!roomAvatarUrl.empty()) return roomAvatarUrl;
-
-    // Original Kotlin: only for direct rooms
-    if (!isDirect) return "";
-
-    // Filter: exclude specific users + current user
-    std::vector<RoomMemberInfo> activeOthers;
-    for (const auto& m : activeMembers) {
-        bool excluded = false;
-        for (const auto& id : excludedUserIds) {
-            if (m.userId == id) { excluded = true; break; }
-        }
-        if (!excluded && m.userId != currentUserId) {
-            activeOthers.push_back(m);
-        }
-    }
-
-    // Original Kotlin: exactly 1 other active member
-    if (activeOthers.size() == 1) {
-        // Try left members first, then active
-        for (const auto& m : leftMembers) {
-            if (!m.avatarUrl.empty()) return m.avatarUrl;
-        }
-        return activeOthers[0].avatarUrl;
-    }
-
-    // Original Kotlin: exactly 2 — return the other one's avatar
-    if (activeOthers.size() == 2) {
-        for (const auto& m : activeOthers) {
-            if (m.userId != currentUserId) return m.avatarUrl;
-        }
-    }
-
-    return "";
-}
+std::string resolveRoomAvatar(const std::string& roomAvatarUrl, bool isDirect, const std::vector<RoomMemberInfo>& activeMembers, const std::vector<RoomMemberInfo>& leftMembers, const std::vector<std::string>& excludedUserIds, const std::string& currentUserId);
 
 // ==== Reaction Dedup Check ====
 //
@@ -168,16 +138,7 @@ inline std::string resolveRoomAvatar(
 //
 // reactionsSummary: list of {key, count, addedByMe} entries
 // reaction: the emoji/key to check
-inline bool isReactionDuplicate(
-    const std::vector<std::pair<std::string, bool>>& reactionsSummary, // {key, addedByMe}
-    const std::string& reaction)
-{
-    // Original Kotlin: .none { it.addedByMe && it.key == reaction }
-    for (const auto& [key, addedByMe] : reactionsSummary) {
-        if (addedByMe && key == reaction) return true;
-    }
-    return false;
-}
+bool isReactionDuplicate(const std::vector<std::pair<std::string, bool>>& reactionsSummary, const std::string& reaction);
 
 // ==== TokenChunkEventPersistor — Direction-Aware Member Content ====
 //
@@ -191,20 +152,6 @@ inline bool isReactionDuplicate(
 
 enum class PaginationDirection { BACKWARDS = 0, FORWARDS = 1 };
 
-inline std::string selectMemberContent(
-    const std::string& content,           // "content" key from event
-    const std::string& prevContent,        // "prev_content" key from event
-    const std::string& eventType,
-    PaginationDirection direction)
-{
-    // Original Kotlin: only for m.room.member events
-    if (eventType != "m.room.member") return content;
-
-    // Original Kotlin: for backwards, prefer prevContent
-    if (direction == PaginationDirection::BACKWARDS && !prevContent.empty())
-        return prevContent;
-
-    return content;
-}
+std::string selectMemberContent(const std::string& content, const std::string& prevContent, const std::string& eventType, int direction);
 
 } // namespace progressive

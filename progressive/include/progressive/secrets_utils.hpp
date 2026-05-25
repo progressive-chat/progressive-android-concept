@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string encryptSecret(const std::string& json);
-std::string decryptSecret(const std::string& json);
-std::string hashSecret(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool secrets_utils_validate(const std::string& input);
+std::string secrets_utils_process(const std::string& input);
+json secrets_utils_toJson(const std::string& input);
+
+} // namespace progressive

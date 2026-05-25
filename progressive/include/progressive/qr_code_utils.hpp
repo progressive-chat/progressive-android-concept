@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseQrContent(const std::string& json);
-std::string buildQrPayload(const std::string& json);
-std::string verifyQrSignature(const std::string& json);
-std::string isValidQrFormat(const std::string& json);
-std::string formatQrHtml(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool qr_code_utils_validate(const std::string& input);
+std::string qr_code_utils_process(const std::string& input);
+json qr_code_utils_toJson(const std::string& input);
+
+} // namespace progressive

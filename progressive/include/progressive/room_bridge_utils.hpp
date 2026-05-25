@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string detectBridge(const std::string& json);
-std::string getBridgeType(const std::string& json);
-std::string isBridgedRoom(const std::string& json);
-std::string formatBridgeNotice(const std::string& json);
-std::string parseBridgeState(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_bridge_utils_validate(const std::string& input);
+std::string room_bridge_utils_process(const std::string& input);
+json room_bridge_utils_toJson(const std::string& input);
+
+} // namespace progressive

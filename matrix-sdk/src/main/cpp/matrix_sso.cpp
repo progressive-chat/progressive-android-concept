@@ -1,4 +1,5 @@
 #include "matrix_sso.hpp"
+#include <sstream>
 #include <android/log.h>
 
 #define LOG_TAG "SSOManager"

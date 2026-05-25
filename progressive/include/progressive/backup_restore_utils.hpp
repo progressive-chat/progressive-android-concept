@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseBackup(const std::string& json);
-std::string restoreFromBackup(const std::string& json);
-std::string validateBackup(const std::string& json);
-std::string buildRestoreEvent(const std::string& json);
-std::string formatRestoreProgress(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool backup_restore_utils_validate(const std::string& input);
+std::string backup_restore_utils_process(const std::string& input);
+json backup_restore_utils_toJson(const std::string& input);
+
+} // namespace progressive

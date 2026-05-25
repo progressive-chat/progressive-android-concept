@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseProtocolConfig(const std::string& json);
-std::string buildProtocolLookup(const std::string& json);
-std::string parseLocationResponse(const std::string& json);
-std::string mergeProtocolResults(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool thirdparty_utils_validate(const std::string& input);
+std::string thirdparty_utils_process(const std::string& input);
+json thirdparty_utils_toJson(const std::string& input);
+
+} // namespace progressive

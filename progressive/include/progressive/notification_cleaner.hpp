@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string clearNotification(const std::string& json);
-std::string dismissAll(const std::string& json);
-std::string isNotificationActive(const std::string& json);
-std::string getActiveNotifications(const std::string& json);
-std::string formatClearAction(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool notification_cleaner_validate(const std::string& input);
+std::string notification_cleaner_process(const std::string& input);
+json notification_cleaner_toJson(const std::string& input);
+
+} // namespace progressive

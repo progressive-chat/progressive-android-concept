@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string tokenizeQuery(const std::string& json);
-std::string buildSearchBody(const std::string& json);
-std::string parseSearchResults(const std::string& json);
-std::string rankSearchResults(const std::string& json);
-std::string applySearchFilter(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool search_utils_validate(const std::string& input);
+std::string search_utils_process(const std::string& input);
+json search_utils_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseServerNotice(const std::string& json);
-std::string buildAdminCommand(const std::string& json);
-std::string validateAdminToken(const std::string& json);
-std::string checkAdminPermission(const std::string& json);
-std::string formatAdminResponse(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool admin_utils_validate(const std::string& input);
+std::string admin_utils_process(const std::string& input);
+json admin_utils_toJson(const std::string& input);
+
+} // namespace progressive

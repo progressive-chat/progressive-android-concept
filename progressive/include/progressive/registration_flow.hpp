@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseRegistrationStages(const std::string& json);
-std::string buildRegistrationBody(const std::string& json);
-std::string validateUsername(const std::string& json);
-std::string checkPasswordPolicy(const std::string& json);
-std::string formatRegError(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool registration_flow_validate(const std::string& input);
+std::string registration_flow_process(const std::string& input);
+json registration_flow_toJson(const std::string& input);
+
+} // namespace progressive

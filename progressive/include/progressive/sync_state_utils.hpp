@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
+
 namespace progressive {
-struct SyncState { bool isSyncing=false; int64_t lastSyncMs=0; int pendingRooms=0; std::string nextBatch; };
-SyncState parseSyncState(const std::string& json);
-std::string formatSyncState(const SyncState& s);
-bool isInitialSync(const SyncState& s);
-}
+
+using json = nlohmann::json;
+
+bool sync_state_utils_validate(const std::string& input);
+std::string sync_state_utils_process(const std::string& input);
+json sync_state_utils_toJson(const std::string& input);
+
+} // namespace progressive

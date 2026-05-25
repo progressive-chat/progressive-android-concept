@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseTheme(const std::string& json);
-std::string applyDarkMode(const std::string& json);
-std::string getAccentColor(const std::string& json);
-std::string isSystemTheme(const std::string& json);
-std::string formatThemeCss(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool theme_manager_validate(const std::string& input);
+std::string theme_manager_process(const std::string& input);
+json theme_manager_toJson(const std::string& input);
+
+} // namespace progressive

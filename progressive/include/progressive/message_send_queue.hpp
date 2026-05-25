@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string enqueueSend(const std::string& json);
-std::string dequeueSend(const std::string& json);
-std::string getQueueSize(const std::string& json);
-std::string cancelSend(const std::string& json);
-std::string retryFailed(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool message_send_queue_validate(const std::string& input);
+std::string message_send_queue_process(const std::string& input);
+json message_send_queue_toJson(const std::string& input);
+
+} // namespace progressive

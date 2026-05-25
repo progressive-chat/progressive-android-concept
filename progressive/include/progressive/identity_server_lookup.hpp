@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string lookupIdentity(const std::string& json);
-std::string bindIdentity(const std::string& json);
-std::string unbindIdentity(const std::string& json);
-std::string getBindings(const std::string& json);
-std::string formatIdentityCard(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool identity_server_lookup_validate(const std::string& input);
+std::string identity_server_lookup_process(const std::string& input);
+json identity_server_lookup_toJson(const std::string& input);
+
+} // namespace progressive

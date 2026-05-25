@@ -1,18 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string name;           // "Smileys", "Gestures", etc.(const std::string& json);
-std::string std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string> emojis;(const std::string& json);
-std::string std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string> getQuickReactions();(const std::string& json);
-std::string buildReactionContent(const std(const std::string& json);
-std::string string& eventId, const std(const std::string& json);
-std::string string& emoji);(const std::string& json);
-std::string parseReactionKey(const std::string& json);
-std::string bool isReactionEvent(const std::string& json);
-std::string getEmojiDescription(const std(const std::string& json);
-std::string string& emoji);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool reaction_picker_utils_validate(const std::string& input);
+std::string reaction_picker_utils_process(const std::string& input);
+json reaction_picker_utils_toJson(const std::string& input);
+
+} // namespace progressive

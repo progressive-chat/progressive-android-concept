@@ -1,13 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string bool containsDisplayName(const std(const std::string& json);
-std::string string& body, const std(const std::string& json);
-std::string string& displayName);(const std::string& json);
-std::string bool matchesHighlightRules(const std(const std::string& json);
-std::string string& body, const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& keywords);(const std::string& json);
-std::string int parseHighlightCount(const std(const std::string& json);
-std::string string& notifJson);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_highlight_utils_validate(const std::string& input);
+std::string event_highlight_utils_process(const std::string& input);
+json event_highlight_utils_toJson(const std::string& input);
+
+} // namespace progressive

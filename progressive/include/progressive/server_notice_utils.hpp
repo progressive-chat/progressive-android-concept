@@ -1,26 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct ServerNoticeContent {
-    std::string noticeType;     // "m.server_notice"
-    std::string adminContact;   // admin contact URI
-    std::string limitType;      // "monthly_active_user" etc.
-    std::string message;
-};
+using json = nlohmann::json;
 
-// Parse server notice from event content
-ServerNoticeContent parseServerNotice(const std::string& json);
-
-// Check if event is a server notice
-bool isServerNoticeEvent(const std::string& json);
-
-// Format server notice for display
-std::string formatServerNotice(const ServerNoticeContent& notice);
-
-// Build server notice room tag
-std::string buildServerNoticeTag();
+bool server_notice_utils_validate(const std::string& input);
+std::string server_notice_utils_process(const std::string& input);
+json server_notice_utils_toJson(const std::string& input);
 
 } // namespace progressive

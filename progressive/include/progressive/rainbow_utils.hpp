@@ -1,13 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string textToRainbow(const std(const std::string& json);
-std::string string& text, double saturation = 1.0, double lightness = 0.5);(const std::string& json);
-std::string textToWave(const std(const std::string& json);
-std::string string& text);(const std::string& json);
-std::string getRainbowColor(int index, int totalChars);(const std::string& json);
-std::string bool isRainbowCommand(const std(const std::string& json);
-std::string string& text);(const std::string& json);
-std::string stripFormatCommands(const std(const std::string& json);
-std::string string& text);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool rainbow_utils_validate(const std::string& input);
+std::string rainbow_utils_process(const std::string& input);
+json rainbow_utils_toJson(const std::string& input);
+
+} // namespace progressive

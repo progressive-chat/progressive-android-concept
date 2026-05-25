@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string cachePreview(const std::string& json);
-std::string getCachedPreview(const std::string& json);
-std::string isPreviewStale(const std::string& json);
-std::string clearPreviewCache(const std::string& json);
-std::string formatCachedPreview(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool link_preview_cache_validate(const std::string& input);
+std::string link_preview_cache_process(const std::string& input);
+json link_preview_cache_toJson(const std::string& input);
+
+} // namespace progressive

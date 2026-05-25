@@ -24,6 +24,17 @@ FetchContent_Declare(olm
 )
 FetchContent_MakeAvailable(olm)
 
+# SQLite3 amalgamation — downloaded at build time
+FetchContent_Declare(sqlite3
+    URL https://www.sqlite.org/2025/sqlite-amalgamation-3490100.zip
+)
+FetchContent_GetProperties(sqlite3)
+if(NOT sqlite3_POPULATED)
+    FetchContent_Populate(sqlite3)
+    add_library(sqlite3 STATIC ${sqlite3_SOURCE_DIR}/sqlite3.c)
+    target_include_directories(sqlite3 PUBLIC ${sqlite3_SOURCE_DIR})
+endif()
+
 # ── Libraries ──
 add_subdirectory(matrix-sdk)
 add_subdirectory(progressive)
@@ -51,25 +62,24 @@ add_library(progressive_app SHARED ${APP_SOURCES})
 
 target_include_directories(progressive_app PRIVATE app/src/main/cpp)
 
-target_link_libraries(progressive_app
-    PRIVATE
-        progressive
-        matrix_sdk
-        olm
-        attachment_viewer
-        multipicker
-        autocomplete
-        diff_match_patch
-        jsonviewer
-        span
-        dialpad
-        barcodescanner
-        textdrawable
-        nlohmann_json::nlohmann_json
-)
-
 if(ANDROID)
-    target_link_libraries(progressive_app PRIVATE android log GLESv3 EGL OpenSLES)
+    # NDK native_app_glue (Android NativeActivity helper)
+    add_library(native_app_glue STATIC
+        ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+    target_include_directories(native_app_glue PUBLIC
+        ${ANDROID_NDK}/sources/android/native_app_glue)
+    
+    target_include_directories(progressive_app PRIVATE
+        ${ANDROID_NDK}/sources/android/native_app_glue)
+    target_link_libraries(progressive_app PRIVATE 
+        android log GLESv3 EGL OpenSLES
+        native_app_glue
+-Wl,--whole-archive progressive -Wl,--no-whole-archive
+        
+        
+        matrix_sdk olm sqlite3 attachment_viewer multipicker autocomplete
+        diff_match_patch jsonviewer span dialpad barcodescanner textdrawable
+        nlohmann_json::nlohmann_json)
     target_compile_definitions(progressive_app PRIVATE PROGRESSIVE_ANDROID)
 endif()
 

@@ -1,15 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string formatMatrixError(const std(const std::string& json);
-std::string string& errcode, const std(const std::string& json);
-std::string string& error);(const std::string& json);
-std::string bool isRetryableError(const std(const std::string& json);
-std::string string& errcode);(const std::string& json);
-std::string bool isAuthError(const std(const std::string& json);
-std::string string& errcode);(const std::string& json);
-std::string bool isRateLimitError(const std(const std::string& json);
-std::string string& errcode);(const std::string& json);
-std::string getFriendlyErrorMessage(const std(const std::string& json);
-std::string string& errcode);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool matrix_error_utils_validate(const std::string& input);
+std::string matrix_error_utils_process(const std::string& input);
+json matrix_error_utils_toJson(const std::string& input);
+
+} // namespace progressive

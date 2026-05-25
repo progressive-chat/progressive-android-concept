@@ -1,25 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string std(const std::string& json);
-std::string unordered_map<std(const std::string& json);
-std::string string, int> users;(const std::string& json);
-std::string PowerLevelInfo parsePowerLevelInfo(const std::string& json);
-std::string int getUserLevel(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool canUserBan(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool canUserKick(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool canUserRedact(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool canUserInvite(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool canUserChangeState(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string bool isUserAdmin(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
-std::string formatPowerLevel(int level);(const std::string& json);
-std::string formatUserRole(const PowerLevelInfo& pl, const std(const std::string& json);
-std::string string& userId);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_power_level_utils_validate(const std::string& input);
+std::string room_power_level_utils_process(const std::string& input);
+json room_power_level_utils_toJson(const std::string& input);
+
+} // namespace progressive

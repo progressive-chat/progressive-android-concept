@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseDeactivation(const std::string& json);
-std::string buildDeactivationBody(const std::string& json);
-std::string validatePassword(const std::string& json);
-std::string checkPendingRequests(const std::string& json);
-std::string formatDeactivationConfirm(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool account_deactivation_utils_validate(const std::string& input);
+std::string account_deactivation_utils_process(const std::string& input);
+json account_deactivation_utils_toJson(const std::string& input);
+
+} // namespace progressive

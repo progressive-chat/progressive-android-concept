@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string markRead(const std::string& json);
-std::string isRead(const std::string& json);
-std::string getUnreadPosition(const std::string& json);
-std::string getReadReceipts(const std::string& json);
-std::string formatReadStatus(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool read_tracker_validate(const std::string& input);
+std::string read_tracker_process(const std::string& input);
+json read_tracker_toJson(const std::string& input);
+
+} // namespace progressive

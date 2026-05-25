@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string startVerification(const std::string& json);
-std::string acceptVerification(const std::string& json);
-std::string cancelVerification(const std::string& json);
-std::string parseVerificationEvent(const std::string& json);
-std::string formatVerificationEmoji(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool device_verifier_validate(const std::string& input);
+std::string device_verifier_process(const std::string& input);
+json device_verifier_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,23 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct EventContext {
-    std::string eventId;
-    std::vector<std::string> beforeEvents;   // events before
-    std::vector<std::string> afterEvents;    // events after
-    std::string roomId;
-};
+using json = nlohmann::json;
 
-// Parse event context API response
-EventContext parseEventContext(const std::string& json);
-
-// Build event context request
-std::string buildContextRequest(int limit = 10);
-
-// Format context summary
-std::string formatContextSummary(const EventContext& ctx);
+bool event_context_utils_validate(const std::string& input);
+std::string event_context_utils_process(const std::string& input);
+json event_context_utils_toJson(const std::string& input);
 
 } // namespace progressive

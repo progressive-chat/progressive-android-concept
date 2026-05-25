@@ -1,479 +1,111 @@
 #include "progressive/jumptodate.hpp"
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
+#include "progressive/json_parser.hpp"
+#include <ctime>
 #include <sstream>
-#include <chrono>
-#include <mutex>
-#include <nlohmann/json.hpp>
-#include <android/log.h>
-
-#define LOG_TAG "JumpToDateRequest"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-using json = nlohmann::json;
+#include <regex>
+#include <cstring>
 
 namespace progressive {
 
-namespace {
-// String utilities
-static std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
+bool validateAndComputeTimestamp(JumpToDateRequest& request) {
+    // YYYY-MM-DD regex
+    static const std::regex dateRegex(R"(^(\d{4})-(\d{2})-(\d{2})$)");
+    std::smatch match;
+
+    if (!std::regex_match(request.dateString, match, dateRegex)) {
+        request.errorMessage = "Invalid date format. Use YYYY-MM-DD.";
+        return false;
+    }
+
+    int year  = std::stoi(match[1]);
+    int month = std::stoi(match[2]);
+    int day   = std::stoi(match[3]);
+
+    if (month < 1 || month > 12) {
+        request.errorMessage = "Invalid month. Must be 01-12.";
+        return false;
+    }
+
+    if (day < 1 || day > 31) {
+        request.errorMessage = "Invalid day. Must be 01-31.";
+        return false;
+    }
+
+    // Days per month validation
+    static const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    auto isLeapYear = [](int y) { return (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0); };
+    int maxDay = daysInMonth[month - 1];
+    if (month == 2 && isLeapYear(year)) maxDay = 29;
+
+    if (day > maxDay) {
+        request.errorMessage = "Invalid day for given month.";
+        return false;
+    }
+
+    request.originServerTs = dateToUnixTimestamp(year, month, day);
+    return true;
 }
 
-static std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) result.push_back(item);
+int64_t dateToUnixTimestamp(int year, int month, int day) {
+    struct tm timeinfo = {};
+    timeinfo.tm_year = year - 1900;
+    timeinfo.tm_mon  = month - 1;
+    timeinfo.tm_mday = day;
+    timeinfo.tm_hour = 0;
+    timeinfo.tm_min  = 0;
+    timeinfo.tm_sec  = 0;
+
+    // Use timegm for UTC (POSIX). Fallback to mktime with TZ=UTC on Android.
+    auto timestamp = static_cast<int64_t>(timegm(&timeinfo));
+
+    // MSC3030 expects milliseconds
+    return timestamp * 1000;
+}
+
+std::string buildMsc3030Url(const JumpToDateRequest& request) {
+    std::ostringstream oss;
+    oss << request.serverBaseUrl
+        << "/_matrix/client/unstable/org.matrix.msc3030"
+        << "/rooms/" << request.roomId
+        << "/timestamp_to_event"
+        << "?ts=" << request.originServerTs
+        << "&dir=f";
+    return oss.str();
+}
+
+JumpToDateResult parseTimestampToEventResponse(const std::string& responseBody, int httpStatus) {
+    JumpToDateResult result;
+    result.statusCode = httpStatus;
+
+    if (httpStatus != 200) {
+        result.success = false;
+
+        auto errcode = parseJsonStringValue(responseBody, "errcode");
+        auto error   = parseJsonStringValue(responseBody, "error");
+
+        result.errorMessage = "Server returned " + std::to_string(httpStatus);
+        if (!errcode.empty()) result.errorMessage += " (" + errcode + ")";
+        if (!error.empty()) result.errorMessage += ": " + error;
+        return result;
+    }
+
+    auto eventId = parseJsonStringValue(responseBody, "event_id");
+    if (eventId.empty()) {
+        result.success = false;
+        result.errorMessage = "Response missing event_id field.";
+        return result;
+    }
+
+    // Handle "event_id": "~" which means no event found after that timestamp
+    if (eventId == "~") {
+        result.success = false;
+        result.errorMessage = "No events found after the given date.";
+        return result;
+    }
+
+    result.success = true;
+    result.eventId = eventId;
     return result;
-}
-
-static std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return r;
-}
-
-static bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
-}
-
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-static std::string replaceAll(std::string s, const std::string& from,
-                                const std::string& to) {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
-    }
-    return s;
-}
-
-static bool isValidMatrixId(const std::string& id) {
-    return !id.empty() && id.size() <= 255 && id.find(' ') == std::string::npos;
-}
-
-static uint64_t currentTimeMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
-static std::string generateTxnId() {
-    static std::atomic<uint64_t> counter0;
-    return "txn_" + std::to_string(currentTimeMs()) + "_" +
-           std::to_string(counter.fetch_add(1));
-}
-
-} // anonymous namespace
-
-// ==== JumpToDateRequest Implementation ====
-// Translated from Kotlin: jumptodate.kt
-
-JumpToDateRequest::JumpToDateRequest() {
-    LOGI("JumpToDateRequest constructor");
-}
-
-JumpToDateRequest::JumpToDateRequest(const json& config) {
-    LOGI("JumpToDateRequest constructor with config");
-    configure(config);
-}
-
-JumpToDateRequest::~JumpToDateRequest() {
-    onDestroy();
-    LOGI("JumpToDateRequest destructor");
-}
-
-bool JumpToDateRequest::initialize() {
-    LOGI("JumpToDateRequest::initialize");
-    if (m_initialized) return true;
-    m_initialized = true;
-    return true;
-}
-
-void JumpToDateRequest::configure(const json& config) {
-    if (config.empty()) return;
-    m_config = config;
-    LOGI("JumpToDateRequest::configure - config loaded");
-}
-
-void JumpToDateRequest::reset() {
-    LOGW("JumpToDateRequest::reset");
-    m_lastError.clear();
-}
-
-void JumpToDateRequest::setEnabled(bool enabled) {
-    if (m_enabled != enabled) {
-        m_enabled = enabled;
-        LOGI("JumpToDateRequest: enabled = %d", enabled);
-    }
-}
-
-bool JumpToDateRequest::isEnabled() const {
-    return m_enabled;
-}
-
-std::string JumpToDateRequest::getStatus() const {
-    json status;
-    status["class"] = "JumpToDateRequest";
-    status["initialized"] = m_initialized;
-    status["enabled"] = m_enabled;
-    return status.dump();
-}
-
-json JumpToDateRequest::toJson() const {
-    json j;
-    j["type"] = "JumpToDateRequest";
-    j["enabled"] = m_enabled;
-    j["initialized"] = m_initialized;
-    return j;
-}
-
-bool JumpToDateRequest::fromJson(const json& j) {
-    if (j.empty()) return false;
-    m_enabled = j.value("enabled", true);
-    return true;
-}
-
-std::string JumpToDateRequest::lastError() const {
-    return m_lastError;
-}
-
-void JumpToDateRequest::setError(const std::string& error) {
-    m_lastError = error;
-    LOGE("JumpToDateRequest: %s", error.c_str());
-    if (m_errorCallback) m_errorCallback(error);
-}
-
-void JumpToDateRequest::onUpdate(std::function<void(const json&)> cb) {
-    m_updateCallback = std::move(cb);
-}
-
-void JumpToDateRequest::onError(std::function<void(const std::string&)> cb) {
-    m_errorCallback = std::move(cb);
-}
-
-void JumpToDateRequest::notifyUpdate(const json& data) {
-    if (m_updateCallback) m_updateCallback(data);
-}
-
-void JumpToDateRequest::onPause() {
-    LOGI("JumpToDateRequest::onPause");
-    m_paused = true;
-}
-
-void JumpToDateRequest::onResume() {
-    LOGI("JumpToDateRequest::onResume");
-    m_paused = false;
-}
-
-void JumpToDateRequest::onDestroy() {
-    LOGI("JumpToDateRequest::onDestroy");
-    m_updateCallback = nullptr;
-    m_errorCallback = nullptr;
-}
-
-// ==== Cache management ====
-
-void JumpToDateRequest::clearCache() {
-    LOGI("Clearing cache");
-    m_cache.clear();
-}
-
-void JumpToDateRequest::flushCache() {
-    LOGI("Flushing cache");
-}
-
-size_t JumpToDateRequest::cacheSize() const {
-    return m_cache.size();
-}
-
-// ==== Diagnostics ====
-
-std::string JumpToDateRequest::diagnostics() const {
-    json diag;
-    diag["class"] = "JumpToDateRequest";
-    diag["initialized"] = m_initialized;
-    diag["enabled"] = m_enabled;
-    diag["paused"] = m_paused;
-    diag["timestamp"] = currentTimeMs();
-    return diag.dump(2);
-}
-
-void JumpToDateRequest::dumpState() const {
-    LOGI("State dump: %s", diagnostics().c_str());
-}
-
-void JumpToDateRequest::lock() {
-    m_mutex.lock();
-}
-
-void JumpToDateRequest::unlock() {
-    m_mutex.unlock();
-}
-
-bool JumpToDateRequest::tryLock() {
-    return m_mutex.try_lock();
-}
-
-// ==== Batch operations ====
-
-void JumpToDateRequest::beginBatch() {
-    m_batchMode = true;
-}
-
-void JumpToDateRequest::endBatch() {
-    m_batchMode = false;
-    notifyUpdate(json::object());
-}
-
-bool JumpToDateRequest::isBatchMode() const {
-    return m_batchMode;
 }
 
 } // namespace progressive
-
-
-
-// ==== Extended jumptodate implementation ====
-// Additional methods and utilities generated for completeness
-
-// Serialization helpers
-std::string jumptodate::serialize() const {
-    json j = toJson();
-    return j.dump();
-}
-
-bool jumptodate::deserialize(const std::string& data) {
-    if (data.empty()) return false;
-    try {
-        json j = json::parse(data);
-        return fromJson(j);
-    } catch (...) {
-        setError("Failed to deserialize data");
-        return false;
-    }
-}
-
-// Validation helpers
-bool jumptodate::validate() const {
-    if (!m_initialized) {
-        LOGE("jumptodate: not initialized");
-        return false;
-    }
-    return true;
-}
-
-// Storage helpers
-bool jumptodate::save(const std::string& path) const {
-    std::string data = serialize();
-    if (data.empty()) return false;
-    std::ofstream f(path);
-    if (!f) return false;
-    f << data;
-    return true;
-}
-
-bool jumptodate::load(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) return false;
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return deserialize(ss.str());
-}
-
-// Metrics and statistics
-json jumptodate::getMetrics() const {
-    json m;
-    m["class"] = "jumptodate";
-    m["initialized"] = m_initialized;
-    m["enabled"] = m_enabled;
-    m["paused"] = m_paused;
-    m["timestamp"] = currentTimeMs();
-    return m;
-}
-
-int jumptodate::getOperationCount() const {
-    return m_operationCount;
-}
-
-void jumptodate::resetOperationCount() {
-    m_operationCount = 0;
-}
-
-// Event emission
-void jumptodate::emitEvent(const std::string& eventType, const json& data) {
-    json event;
-    event["type"] = eventType;
-    event["source"] = "jumptodate";
-    event["data"] = data;
-    event["timestamp"] = currentTimeMs();
-    notifyUpdate(event);
-}
-
-// Policy checking
-bool jumptodate::checkPolicy(const std::string& policy, const json& context) {
-    (void)policy;
-    (void)context;
-    return true;
-}
-
-// Access control
-bool jumptodate::canAccess(const std::string& userId, const std::string& resource) {
-    (void)userId;
-    (void)resource;
-    return true;
-}
-
-// Rate limiting
-bool jumptodate::checkRateLimit(const std::string& key, int maxRequests, int windowMs) {
-    auto now = currentTimeMs();
-    auto& window = m_rateLimitWindows[key];
-    if (now - window.startTime > windowMs) {
-        window.startTime = now;
-        window.count = 0;
-    }
-    if (window.count >= maxRequests) return false;
-    window.count++;
-    return true;
-}
-
-// Observation pattern
-void jumptodate::addObserver(const std::string& observerId) {
-    m_observers.insert(observerId);
-}
-
-void jumptodate::removeObserver(const std::string& observerId) {
-    m_observers.erase(observerId);
-}
-
-int jumptodate::observerCount() const {
-    return static_cast<int>(m_observers.size());
-}
-
-void jumptodate::notifyObservers(const json& data) {
-    notifyUpdate(data);
-}
-
-// Factory pattern
-std::shared_ptr<void> jumptodate::createInstance() {
-    return nullptr;
-}
-
-// Iterator pattern
-std::vector<std::string> jumptodate::listItems() const {
-    return {};
-}
-
-int jumptodate::itemCount() const {
-    return 0;
-}
-
-// Versioning
-std::string jumptodate::getVersion() const {
-    return "1.0.0";
-}
-
-bool jumptodate::checkVersion(const std::string& requiredVersion) {
-    return getVersion() >= requiredVersion;
-}
-
-// Feature flags
-bool jumptodate::isFeatureEnabled(const std::string& feature) const {
-    auto it = m_features.find(feature);
-    return it != m_features.end() && it->second;
-}
-
-void jumptodate::setFeature(const std::string& feature, bool enabled) {
-    m_features[feature] = enabled;
-}
-
-std::vector<std::string> jumptodate::getEnabledFeatures() const {
-    std::vector<std::string> result;
-    for (auto& [feature, enabled] : m_features) {
-        if (enabled) result.push_back(feature);
-    }
-    return result;
-}
-
-// Data migration
-bool jumptodate::migrateData(int fromVersion, int toVersion) {
-    LOGI("jumptodate: migrating data from v%d to v%d", fromVersion, toVersion);
-    return true;
-}
-
-int jumptodate::getDataVersion() const {
-    return m_dataVersion;
-}
-
-// Import/Export
-json jumptodate::exportData() const {
-    return toJson();
-}
-
-bool jumptodate::importData(const json& data) {
-    return fromJson(data);
-}
-
-// Cleanup
-void jumptodate::performCleanup() {
-    LOGI("jumptodate: performing cleanup");
-    m_cache.clear();
-    m_observers.clear();
-    m_features.clear();
-    m_rateLimitWindows.clear();
-}
-
-// Memory management
-size_t jumptodate::memoryUsage() const {
-    size_t usage = sizeof(*this);
-    usage += m_cache.size() * sizeof(std::string) * 100;
-    usage += m_observers.size() * sizeof(std::string) * 50;
-    usage += m_features.size() * (sizeof(std::string) + sizeof(bool));
-    return usage;
-}
-
-// Transaction support
-bool jumptodate::beginTransaction() {
-    if (m_inTransaction) return false;
-    m_inTransaction = true;
-    m_transactionData = json::object();
-    return true;
-}
-
-bool jumptodate::commitTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    notifyUpdate(m_transactionData);
-    return true;
-}
-
-bool jumptodate::rollbackTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    m_transactionData = json::object();
-    return true;
-}
-
-// Logging helpers
-void jumptodate::logDebug(const std::string& msg) const {
-    LOGI("jumptodate: %s", msg.c_str());
-}
-
-void jumptodate::logWarning(const std::string& msg) const {
-    LOGW("jumptodate: %s", msg.c_str());
-}
-
-void jumptodate::logError(const std::string& msg) const {
-    LOGE("jumptodate: %s", msg.c_str());
-}

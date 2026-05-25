@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseContentType(const std::string& json);
-std::string extractTextBody(const std::string& json);
-std::string extractFormattedBody(const std::string& json);
-std::string extractMediaUrl(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_content_utils_validate(const std::string& input);
+std::string event_content_utils_process(const std::string& input);
+json event_content_utils_toJson(const std::string& input);
+
+} // namespace progressive

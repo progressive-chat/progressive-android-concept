@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseSessionInfo(const std::string& json);
-std::string buildSessionMetadata(const std::string& json);
-std::string getLastActiveTimestamp(const std::string& json);
-std::string formatDeviceFingerprint(const std::string& json);
-std::string hashSessionId(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool session_metadata_utils_validate(const std::string& input);
+std::string session_metadata_utils_process(const std::string& input);
+json session_metadata_utils_toJson(const std::string& input);
+
+} // namespace progressive

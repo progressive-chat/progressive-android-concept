@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getPowerLevelColor(const std::string& json);
-std::string getPowerLevelIcon(const std::string& json);
-std::string formatPowerBadge(const std::string& json);
-std::string getPowerDescription(const std::string& json);
-std::string parsePowerLevels(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool power_level_visualizer_validate(const std::string& input);
+std::string power_level_visualizer_process(const std::string& input);
+json power_level_visualizer_toJson(const std::string& input);
+
+} // namespace progressive

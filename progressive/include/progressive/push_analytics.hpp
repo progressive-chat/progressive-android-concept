@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string trackPushReceived(const std::string& json);
-std::string trackPushDismissed(const std::string& json);
-std::string trackPushOpened(const std::string& json);
-std::string getPushStats(const std::string& json);
-std::string dailyPushSummary(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool push_analytics_validate(const std::string& input);
+std::string push_analytics_process(const std::string& input);
+json push_analytics_toJson(const std::string& input);
+
+} // namespace progressive

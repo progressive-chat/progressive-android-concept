@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseRoomType(const std::string& json);
-std::string isSpace(const std::string& json);
-std::string isDirect(const std::string& json);
-std::string isGroupRoom(const std::string& json);
-std::string formatRoomTypeLabel(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_type_detector_validate(const std::string& input);
+std::string room_type_detector_process(const std::string& input);
+json room_type_detector_toJson(const std::string& input);
+
+} // namespace progressive

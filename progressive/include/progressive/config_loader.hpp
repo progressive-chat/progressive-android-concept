@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseConfig(const std::string& json);
-std::string getWellKnown(const std::string& json);
-std::string getCustomConfig(const std::string& json);
-std::string isFeatureEnabled(const std::string& json);
-std::string reloadConfig(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool config_loader_validate(const std::string& input);
+std::string config_loader_process(const std::string& input);
+json config_loader_toJson(const std::string& input);
+
+} // namespace progressive

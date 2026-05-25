@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string createAccount(const std::string& json);
-std::string signMessage(const std::string& json);
-std::string verifySignature(const std::string& json);
-std::string generateKeys(const std::string& json);
-std::string getIdentityKey(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool olm_utils_validate(const std::string& input);
+std::string olm_utils_process(const std::string& input);
+json olm_utils_toJson(const std::string& input);
+
+} // namespace progressive

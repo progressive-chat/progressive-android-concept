@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string requestKeyShare(const std::string& json);
-std::string processKeyShare(const std::string& json);
-std::string isKeyKnown(const std::string& json);
-std::string getMissingSessions(const std::string& json);
-std::string formatKeyShareEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool key_share_validate(const std::string& input);
+std::string key_share_process(const std::string& input);
+json key_share_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,14 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildLeaveRequest(const std(const std::string& json);
-std::string string& reason = "");(const std::string& json);
-std::string buildKickRequest(const std(const std::string& json);
-std::string string& userId, const std(const std::string& json);
-std::string string& reason = "");(const std::string& json);
-std::string buildBanRequest(const std(const std::string& json);
-std::string string& userId, const std(const std::string& json);
-std::string string& reason = "");(const std::string& json);
-std::string buildUnbanRequest(const std(const std::string& json);
-std::string string& userId);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_leave_utils_validate(const std::string& input);
+std::string room_leave_utils_process(const std::string& input);
+json room_leave_utils_toJson(const std::string& input);
+
+} // namespace progressive

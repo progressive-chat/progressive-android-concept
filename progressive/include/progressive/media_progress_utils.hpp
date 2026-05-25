@@ -1,11 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
-struct MediaProgress { std::string mxcUrl; int64_t totalBytes = 0; int64_t downloadedBytes = 0; bool isComplete = false; };
-std::string buildMediaProgressJson(const MediaProgress& p);
-MediaProgress parseMediaProgress(const std::string& json);
-int getProgressPercent(const MediaProgress& p);
-std::string formatMediaProgress(const MediaProgress& p);
-}
+
+using json = nlohmann::json;
+
+bool media_progress_utils_validate(const std::string& input);
+std::string media_progress_utils_process(const std::string& input);
+json media_progress_utils_toJson(const std::string& input);
+
+} // namespace progressive

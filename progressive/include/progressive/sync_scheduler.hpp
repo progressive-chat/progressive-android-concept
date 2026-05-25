@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string scheduleNextSync(const std::string& json);
-std::string getRetryDelay(const std::string& json);
-std::string shouldSyncNow(const std::string& json);
-std::string resetSyncTimer(const std::string& json);
-std::string formatSyncSchedule(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool sync_scheduler_validate(const std::string& input);
+std::string sync_scheduler_process(const std::string& input);
+json sync_scheduler_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getCanonicalAlias(const std::string& json);
-std::string setCanonicalAlias(const std::string& json);
-std::string isCanonicalAliasValid(const std::string& json);
-std::string formatAliasForDisplay(const std::string& json);
-std::string parseCanonicalEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool canonical_alias_util_validate(const std::string& input);
+std::string canonical_alias_util_process(const std::string& input);
+json canonical_alias_util_toJson(const std::string& input);
+
+} // namespace progressive

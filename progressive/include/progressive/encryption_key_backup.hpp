@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string backupKeys(const std::string& json);
-std::string restoreKeys(const std::string& json);
-std::string getBackupVersion(const std::string& json);
-std::string deleteBackup(const std::string& json);
-std::string formatBackupStatus(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool encryption_key_backup_validate(const std::string& input);
+std::string encryption_key_backup_process(const std::string& input);
+json encryption_key_backup_toJson(const std::string& input);
+
+} // namespace progressive

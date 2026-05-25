@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <map>
 #include <android/log.h>
 
 #define MP_LOG_TAG "MultiPicker"

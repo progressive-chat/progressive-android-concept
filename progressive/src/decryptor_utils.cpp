@@ -22,7 +22,7 @@ bool DecryptionQueue::enqueue(const std::string& eventId, const std::string& roo
                                DecryptionPriority priority) {
     // Original Kotlin: if already in unknownSessionsFailure, skip
     for (const auto& [sid, events] : unknownSessionsFailure_) {
-        if (events.count(eventId)) return false;
+        if (std::find(events.begin(), events.end(), eventId) != events.end()) return false;
     }
     // Original Kotlin: if already in existingRequests, skip
     if (existingRequests_.count(eventId)) return false;
@@ -78,7 +78,7 @@ void DecryptionQueue::cancel(const std::string& eventId) {
 
     // Remove from unknownSessionsFailure
     for (auto& [sid, events] : unknownSessionsFailure_) {
-        events.erase(eventId);
+        events.erase(std::remove(events.begin(), events.end(), eventId), events.end());
     }
 }
 
@@ -100,7 +100,7 @@ bool DecryptionQueue::hasPendingForRoom(const std::string& roomId) const {
 void DecryptionQueue::registerUnknownSessionFailure(const std::string& sessionId, const std::string& eventId) {
     // Original Kotlin (TimelineEventDecryptor.kt:160-164):
     //   unknownSessionsFailure.getOrPut(sessionId) { mutableSetOf() }.add(request)
-    unknownSessionsFailure_[sessionId].insert(eventId);
+    unknownSessionsFailure_[sessionId].push_back(eventId);
 }
 
 std::vector<std::string> DecryptionQueue::onNewSessionAvailable(const std::string& sessionId) {

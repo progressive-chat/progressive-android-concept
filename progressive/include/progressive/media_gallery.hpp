@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getMediaEvents(const std::string& json);
-std::string groupByDate(const std::string& json);
-std::string getThumbForEvent(const std::string& json);
-std::string getMediaCount(const std::string& json);
-std::string formatGalleryView(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool media_gallery_validate(const std::string& input);
+std::string media_gallery_process(const std::string& input);
+json media_gallery_toJson(const std::string& input);
+
+} // namespace progressive

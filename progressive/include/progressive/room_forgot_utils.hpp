@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseForgotten(const std::string& json);
-std::string markAsForgotten(const std::string& json);
-std::string unforgetRoom(const std::string& json);
-std::string isForgotten(const std::string& json);
-std::string formatForgotStatus(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_forgot_utils_validate(const std::string& input);
+std::string room_forgot_utils_process(const std::string& input);
+json room_forgot_utils_toJson(const std::string& input);
+
+} // namespace progressive

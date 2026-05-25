@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string checkStrength(const std::string& json);
-std::string getEntropy(const std::string& json);
-std::string isCommonPassword(const std::string& json);
-std::string getPasswordFeedback(const std::string& json);
-std::string minRequiredLength(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool password_strength_validate(const std::string& input);
+std::string password_strength_process(const std::string& input);
+json password_strength_toJson(const std::string& input);
+
+} // namespace progressive

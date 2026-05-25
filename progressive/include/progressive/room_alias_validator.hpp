@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseAlias(const std::string& json);
-std::string isValidAlias(const std::string& json);
-std::string isLocalAlias(const std::string& json);
-std::string getServerFromAlias(const std::string& json);
-std::string normalizeAlias(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_alias_validator_validate(const std::string& input);
+std::string room_alias_validator_process(const std::string& input);
+json room_alias_validator_toJson(const std::string& input);
+
+} // namespace progressive

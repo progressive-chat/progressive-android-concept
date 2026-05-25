@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string sortByName(const std::string& json);
-std::string sortByTimestamp(const std::string& json);
-std::string sortByPriority(const std::string& json);
-std::string sortByActivity(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool section_sort_utils_validate(const std::string& input);
+std::string section_sort_utils_process(const std::string& input);
+json section_sort_utils_toJson(const std::string& input);
+
+} // namespace progressive

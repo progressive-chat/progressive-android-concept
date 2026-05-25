@@ -1,18 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildReplyFormattedBody(const std(const std::string& json);
-std::string string& repliedBody, const std(const std::string& json);
-std::string string& repliedFormatted,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& repliedSender, const std(const std::string& json);
-std::string string& repliedUserId,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& newBody, const std(const std::string& json);
-std::string string& newFormatted);(const std::string& json);
-std::string buildReplyPlainBody(const std(const std::string& json);
-std::string string& repliedBody, const std(const std::string& json);
-std::string string& newBody);(const std::string& json);
-std::string extractRepliedEventId(const std::string& json);
-std::string bool isReplyEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool message_reply_utils_validate(const std::string& input);
+std::string message_reply_utils_process(const std::string& input);
+json message_reply_utils_toJson(const std::string& input);
+
+} // namespace progressive

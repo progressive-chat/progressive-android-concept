@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string scheduleTask(const std::string& json);
-std::string cancelTask(const std::string& json);
-std::string getNextRunTime(const std::string& json);
-std::string taskExists(const std::string& json);
-std::string listTasks(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool background_scheduler_validate(const std::string& input);
+std::string background_scheduler_process(const std::string& input);
+json background_scheduler_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string validateEmail(const std::string& json);
-std::string validatePhone(const std::string& json);
-std::string checkMXID(const std::string& json);
-std::string isValidHomeserver(const std::string& json);
-std::string getValidationErrors(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool account_validator_validate(const std::string& input);
+std::string account_validator_process(const std::string& input);
+json account_validator_toJson(const std::string& input);
+
+} // namespace progressive

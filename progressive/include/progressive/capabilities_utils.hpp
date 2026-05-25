@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseCapabilities(const std::string& json);
-std::string getServerCap(const std::string& json);
-std::string getRoomCap(const std::string& json);
-std::string checkCapability(const std::string& json);
-std::string buildCapRequest(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool capabilities_utils_validate(const std::string& input);
+std::string capabilities_utils_process(const std::string& input);
+json capabilities_utils_toJson(const std::string& input);
+
+} // namespace progressive

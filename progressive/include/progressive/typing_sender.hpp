@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string sendTyping(const std::string& json);
-std::string stopTyping(const std::string& json);
-std::string getTypingTimeout(const std::string& json);
-std::string isCurrentlyTyping(const std::string& json);
-std::string formatTypingIndicator(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool typing_sender_validate(const std::string& input);
+std::string typing_sender_process(const std::string& input);
+json typing_sender_toJson(const std::string& input);
+
+} // namespace progressive

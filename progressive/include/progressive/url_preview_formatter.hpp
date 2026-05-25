@@ -1,28 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct UrlPreviewCard {
-    std::string url;
-    std::string title;
-    std::string description;
-    std::string imageUrl;
-    std::string siteName;
-    bool hasPreview = false;
-};
+using json = nlohmann::json;
 
-// Extract first URL from text
-std::string extractFirstUrl(const std::string& text);
-
-// Parse preview from Matrix URL preview event
-UrlPreviewCard parseUrlPreviewCard(const std::string& json);
-
-// Format preview as HTML card
-std::string formatUrlPreviewCard(const UrlPreviewCard& card);
-
-// Check if URL should show preview
-bool shouldShowUrlPreview(const std::string& url);
+bool url_preview_formatter_validate(const std::string& input);
+std::string url_preview_formatter_process(const std::string& input);
+json url_preview_formatter_toJson(const std::string& input);
 
 } // namespace progressive

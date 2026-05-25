@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseFilter(const std::string& json);
-std::string applyFilterToTimeline(const std::string& json);
-std::string getFilteredCount(const std::string& json);
-std::string isEventFiltered(const std::string& json);
-std::string formatFilterLabel(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool timeline_filter_utils_validate(const std::string& input);
+std::string timeline_filter_utils_process(const std::string& input);
+json timeline_filter_utils_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getProviders(const std::string& json);
-std::string selectProvider(const std::string& json);
-std::string parseProviderBrand(const std::string& json);
-std::string buildSsoUrl(const std::string& json);
-std::string formatProviderList(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool sso_provider_utils_validate(const std::string& input);
+std::string sso_provider_utils_process(const std::string& input);
+json sso_provider_utils_toJson(const std::string& input);
+
+} // namespace progressive

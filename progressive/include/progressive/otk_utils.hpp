@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseOneTimeKey(const std::string& json);
-std::string buildSignedKey(const std::string& json);
-std::string verifyKeySignature(const std::string& json);
-std::string countAvailableKeys(const std::string& json);
-std::string selectBestKey(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool otk_utils_validate(const std::string& input);
+std::string otk_utils_process(const std::string& input);
+json otk_utils_toJson(const std::string& input);
+
+} // namespace progressive

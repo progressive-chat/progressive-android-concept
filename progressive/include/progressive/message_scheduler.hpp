@@ -1,57 +1,15 @@
 #pragma once
-
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct ScheduledMessage {
-    std::string id;
-    std::string roomId;
-    std::string body;
-    std::string formattedBody;
-    int64_t scheduledAtMs = 0;      // Unix millis when to send
-    int64_t createdAtMs = 0;
-    bool sent = false;
-    bool cancelled = false;
-};
+using json = nlohmann::json;
 
-class MessageScheduler {
-public:
-    MessageScheduler();
-
-    // Schedule a message for future delivery.
-    // Returns the scheduled message ID.
-    std::string schedule(const std::string& roomId, const std::string& body,
-                         const std::string& formattedBody, int64_t triggerAtMs);
-
-    // Cancel a scheduled message.
-    void cancel(const std::string& id);
-
-    // Get all pending (not yet sent, not cancelled) messages.
-    std::vector<ScheduledMessage> getPending() const;
-
-    // Get all messages due for sending now (scheduledAtMs <= now).
-    // Marks them as sent after returning.
-    std::vector<ScheduledMessage> getDue();
-
-    // Get all scheduled messages for a specific room.
-    std::vector<ScheduledMessage> getForRoom(const std::string& roomId) const;
-
-    // Serialize all messages to JSON for storage.
-    std::string toJson() const;
-
-    // Load messages from JSON.
-    void fromJson(const std::string& json);
-
-    // Clean up old sent/cancelled messages.
-    void cleanup(int64_t olderThanMs = 0);
-
-private:
-    std::vector<ScheduledMessage> messages_;
-    std::string generateId() const;
-    int64_t nowMs() const;
-};
+bool message_scheduler_validate(const std::string& input);
+std::string message_scheduler_process(const std::string& input);
+json message_scheduler_toJson(const std::string& input);
 
 } // namespace progressive

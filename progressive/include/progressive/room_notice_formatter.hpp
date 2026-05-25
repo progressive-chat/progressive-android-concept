@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string formatServerNotice(const std::string& json);
-std::string formatRoomNotice(const std::string& json);
-std::string isAdminNotice(const std::string& json);
-std::string parseNoticeParams(const std::string& json);
-std::string buildNoticeHtml(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_notice_formatter_validate(const std::string& input);
+std::string room_notice_formatter_process(const std::string& input);
+json room_notice_formatter_toJson(const std::string& input);
+
+} // namespace progressive

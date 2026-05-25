@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string canKickUser(const std::string& json);
-std::string buildKickEvent(const std::string& json);
-std::string parseKickResponse(const std::string& json);
-std::string getKickReason(const std::string& json);
-std::string formatKickNotice(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_kicker_validate(const std::string& input);
+std::string room_kicker_process(const std::string& input);
+json room_kicker_toJson(const std::string& input);
+
+} // namespace progressive

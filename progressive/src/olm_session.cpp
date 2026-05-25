@@ -1,4 +1,5 @@
 #include "progressive/olm_session.hpp"
+#include "progressive/jni_bridge.hpp"
 #include "progressive/canonical_json.hpp"
 #include <olm/olm.h>
 #include <olm/account.hh>

@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseFilterQuery(const std::string& json);
-std::string buildSyncFilter(const std::string& json);
-std::string mergeFilterSets(const std::string& json);
-std::string getDefaultFilter(const std::string& json);
-std::string validateFilterJson(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool sync_filter_utils_validate(const std::string& input);
+std::string sync_filter_utils_process(const std::string& input);
+json sync_filter_utils_toJson(const std::string& input);
+
+} // namespace progressive

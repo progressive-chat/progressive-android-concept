@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getSidebarOrder(const std::string& json);
-std::string pinRoom(const std::string& json);
-std::string unpinRoom(const std::string& json);
-std::string isPinned(const std::string& json);
-std::string reorderSidebar(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_sidebar_validate(const std::string& input);
+std::string room_sidebar_process(const std::string& input);
+json room_sidebar_toJson(const std::string& input);
+
+} // namespace progressive

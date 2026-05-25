@@ -2,37 +2,14 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-enum class PaginationDirection { BACKWARD = 0, FORWARD = 1 };
+using json = nlohmann::json;
 
-struct PaginationToken {
-    std::string fromToken;      // pagination token (start/end)
-    std::string toToken;        // exclusive end token (optional)
-    PaginationDirection direction = PaginationDirection::BACKWARD;
-    int limit = 20;
-    std::string filter;         // JSON filter string
-};
-
-struct PaginationResult {
-    std::vector<std::string> eventIds;
-    std::string nextBatch;      // token for next page
-    std::string prevBatch;      // token for previous page
-    bool hasMore = false;
-    int totalReturned = 0;
-};
-
-// Build pagination request parameters
-std::string buildPaginationRequest(const PaginationToken& token);
-
-// Parse pagination response
-PaginationResult parsePaginationResponse(const std::string& json);
-
-// Check if more pages are available
-bool hasMorePages(const PaginationResult& result, PaginationDirection direction);
-
-// Format pagination progress text
-std::string formatPaginationProgress(int loaded, int total, PaginationDirection direction);
+bool event_pagination_validate(const std::string& input);
+std::string event_pagination_process(const std::string& input);
+json event_pagination_toJson(const std::string& input);
 
 } // namespace progressive

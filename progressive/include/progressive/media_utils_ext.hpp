@@ -1,26 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string mxcUrl;(const std::string& json);
-std::string mimeType;(const std::string& json);
-std::string thumbnailUrl;(const std::string& json);
-std::string buildDownloadUrl(const std(const std::string& json);
-std::string string& mxcUrl, const std(const std::string& json);
-std::string string& homeserver);(const std::string& json);
-std::string buildThumbnailUrl(const std(const std::string& json);
-std::string string& mxcUrl, const std(const std::string& json);
-std::string string& homeserver,(const std::string& json);
-std::string int w, int h, const std(const std::string& json);
-std::string string& method = "crop");(const std::string& json);
-std::string bool needsThumbnail(const std(const std::string& json);
-std::string string& mimeType, int maxSize = 1024);(const std::string& json);
-std::string bool isValidMxcUrl(const std(const std::string& json);
-std::string string& url);(const std::string& json);
-std::string extractMxcServer(const std(const std::string& json);
-std::string string& mxcUrl);(const std::string& json);
-std::string extractMxcMediaId(const std(const std::string& json);
-std::string string& mxcUrl);(const std::string& json);
-std::string formatMediaAttribution(const std(const std::string& json);
-std::string string& author, const std(const std::string& json);
-std::string string& license);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool media_utils_ext_validate(const std::string& input);
+std::string media_utils_ext_process(const std::string& input);
+json media_utils_ext_toJson(const std::string& input);
+
+} // namespace progressive

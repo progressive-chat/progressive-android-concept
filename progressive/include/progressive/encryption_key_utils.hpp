@@ -1,11 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string formatDeviceKeyFingerprint(const std(const std::string& json);
-std::string string& key);(const std::string& json);
-std::string formatRecoveryKey(const std(const std::string& json);
-std::string string& rawKey);(const std::string& json);
-std::string bool isValidRecoveryKey(const std(const std::string& json);
-std::string string& key);(const std::string& json);
-std::string parseKeyBackupVersion(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool encryption_key_utils_validate(const std::string& input);
+std::string encryption_key_utils_process(const std::string& input);
+json encryption_key_utils_toJson(const std::string& input);
+
+} // namespace progressive

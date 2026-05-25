@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseLoginToken(const std::string& json);
-std::string validateTokenExpiry(const std::string& json);
-std::string buildTokenLogin(const std::string& json);
-std::string getTokenUser(const std::string& json);
-std::string formatTokenError(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool login_token_util_validate(const std::string& input);
+std::string login_token_util_process(const std::string& input);
+json login_token_util_toJson(const std::string& input);
+
+} // namespace progressive

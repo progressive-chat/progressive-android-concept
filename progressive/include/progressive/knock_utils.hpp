@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseKnockEvent(const std::string& json);
-std::string buildKnockRequest(const std::string& json);
-std::string checkKnockPermission(const std::string& json);
-std::string formatKnockMessage(const std::string& json);
-std::string getKnockRules(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool knock_utils_validate(const std::string& input);
+std::string knock_utils_process(const std::string& input);
+json knock_utils_toJson(const std::string& input);
+
+} // namespace progressive

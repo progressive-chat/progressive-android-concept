@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string isBiometricAvailable(const std::string& json);
-std::string authenticate(const std::string& json);
-std::string getBiometricType(const std::string& json);
-std::string canUseBiometrics(const std::string& json);
-std::string formatBiometricPrompt(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool biometric_auth_validate(const std::string& input);
+std::string biometric_auth_process(const std::string& input);
+json biometric_auth_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string countPendingInvites(const std::string& json);
-std::string getOldestInvite(const std::string& json);
-std::string hasInviteFrom(const std::string& json);
-std::string formatInviteSummary(const std::string& json);
-std::string clearInviteCache(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool invite_counter_validate(const std::string& input);
+std::string invite_counter_process(const std::string& input);
+json invite_counter_toJson(const std::string& input);
+
+} // namespace progressive

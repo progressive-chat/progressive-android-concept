@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseReadMarker(const std::string& json);
-std::string updateReadMarker(const std::string& json);
-std::string buildReadMarkerEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_read_marker_utils_validate(const std::string& input);
+std::string room_read_marker_utils_process(const std::string& input);
+json room_read_marker_utils_toJson(const std::string& input);
+
+} // namespace progressive

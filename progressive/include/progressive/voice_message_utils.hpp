@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseVoiceInfo(const std::string& json);
-std::string getDuration(const std::string& json);
-std::string isPlayed(const std::string& json);
-std::string formatWaveform(const std::string& json);
-std::string transcodeAudio(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool voice_message_utils_validate(const std::string& input);
+std::string voice_message_utils_process(const std::string& input);
+json voice_message_utils_toJson(const std::string& input);
+
+} // namespace progressive

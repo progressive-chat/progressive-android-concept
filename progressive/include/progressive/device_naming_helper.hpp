@@ -1,21 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string generateDeviceName(const std(const std::string& json);
-std::string string& manufacturer, const std(const std::string& json);
-std::string string& model,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& osName, const std(const std::string& json);
-std::string string& osVersion);(const std::string& json);
-std::string parseDeviceNameFromUserAgent(const std(const std::string& json);
-std::string string& userAgent);(const std::string& json);
-std::string formatDeviceDisplayName(const std(const std::string& json);
-std::string string& deviceName, const std(const std::string& json);
-std::string string& osInfo,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& appVersion);(const std::string& json);
-std::string bool isDefaultDeviceName(const std(const std::string& json);
-std::string string& name);(const std::string& json);
-std::string truncateDeviceName(const std(const std::string& json);
-std::string string& name, int maxLen = 50);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool device_naming_helper_validate(const std::string& input);
+std::string device_naming_helper_process(const std::string& input);
+json device_naming_helper_toJson(const std::string& input);
+
+} // namespace progressive

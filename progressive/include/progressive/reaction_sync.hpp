@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string syncReactions(const std::string& json);
-std::string aggregateReactions(const std::string& json);
-std::string getMyReaction(const std::string& json);
-std::string removeReaction(const std::string& json);
-std::string formatReactionCount(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool reaction_sync_validate(const std::string& input);
+std::string reaction_sync_process(const std::string& input);
+json reaction_sync_toJson(const std::string& input);
+
+} // namespace progressive

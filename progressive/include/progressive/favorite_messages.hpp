@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string addFavorite(const std::string& json);
-std::string removeFavorite(const std::string& json);
-std::string isFavorited(const std::string& json);
-std::string getFavorites(const std::string& json);
-std::string formatFavoriteIndicator(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool favorite_messages_validate(const std::string& input);
+std::string favorite_messages_process(const std::string& input);
+json favorite_messages_toJson(const std::string& input);
+
+} // namespace progressive

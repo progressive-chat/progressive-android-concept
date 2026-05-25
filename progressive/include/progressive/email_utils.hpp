@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseEmail(const std::string& json);
-std::string validateEmail(const std::string& json);
-std::string buildEmailAuth(const std::string& json);
-std::string sendVerificationEmail(const std::string& json);
-std::string formatEmailNotice(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool email_utils_validate(const std::string& input);
+std::string email_utils_process(const std::string& input);
+json email_utils_toJson(const std::string& input);
+
+} // namespace progressive

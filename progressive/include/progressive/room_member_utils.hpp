@@ -1,15 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string RoomMemberCount parseMemberCount(const std(const std::string& json);
-std::string string& summaryJson);(const std::string& json);
-std::string formatMemberCount(int count);(const std::string& json);
-std::string formatMemberCountWithOnline(int total, int online);(const std::string& json);
-std::string formatMembershipEvent(const std(const std::string& json);
-std::string string& membership, const std(const std::string& json);
-std::string string& displayName,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& reason = "");(const std::string& json);
-std::string membershipToString(const std(const std::string& json);
-std::string string& membership);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_member_utils_validate(const std::string& input);
+std::string room_member_utils_process(const std::string& input);
+json room_member_utils_toJson(const std::string& input);
+
+} // namespace progressive

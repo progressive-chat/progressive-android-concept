@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string createSession(const std::string& json);
-std::string encryptGroupMessage(const std::string& json);
-std::string decryptGroupMessage(const std::string& json);
-std::string getSessionKey(const std::string& json);
-std::string exportSession(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool megolm_utils_validate(const std::string& input);
+std::string megolm_utils_process(const std::string& input);
+json megolm_utils_toJson(const std::string& input);
+
+} // namespace progressive

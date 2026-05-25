@@ -1,18 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildEventFilter(const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& types, const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& notTypes,(const std::string& json);
-std::string const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& senders, const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& notSenders,(const std::string& json);
-std::string buildRoomFilter(const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& rooms, const std(const std::string& json);
-std::string string& eventFilter);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_filter_utils_validate(const std::string& input);
+std::string event_filter_utils_process(const std::string& input);
+json event_filter_utils_toJson(const std::string& input);
+
+} // namespace progressive

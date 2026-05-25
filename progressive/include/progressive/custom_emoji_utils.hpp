@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildCustomEmojiImage(const std::string& json);
-std::string extractEmojiShortcode(const std::string& json);
-std::string replaceEmojiShortcodes(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool custom_emoji_utils_validate(const std::string& input);
+std::string custom_emoji_utils_process(const std::string& input);
+json custom_emoji_utils_toJson(const std::string& input);
+
+} // namespace progressive

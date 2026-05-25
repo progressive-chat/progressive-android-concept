@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildKnockRequest(const std::string& roomId, const std::vector<std::string>& via={}, const std::string& reason="");
-std::string formatKnockResponse(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_knock_utils_validate(const std::string& input);
+std::string room_knock_utils_process(const std::string& input);
+json room_knock_utils_toJson(const std::string& input);
+
+} // namespace progressive

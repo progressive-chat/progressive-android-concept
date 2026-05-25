@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildFilter(const std::string& json);
-std::string getLazyMembers(const std::string& json);
-std::string isLazyLoaded(const std::string& json);
-std::string optimizeMemberQuery(const std::string& json);
-std::string formatLazyStatus(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool lazy_loading_utils_validate(const std::string& input);
+std::string lazy_loading_utils_process(const std::string& input);
+json lazy_loading_utils_toJson(const std::string& input);
+
+} // namespace progressive

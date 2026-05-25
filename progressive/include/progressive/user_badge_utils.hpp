@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getUserBadge(const std::string& json);
-std::string getPowerBadge(const std::string& json);
-std::string isAdmin(const std::string& json);
-std::string isModerator(const std::string& json);
-std::string formatBadgeHtml(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool user_badge_utils_validate(const std::string& input);
+std::string user_badge_utils_process(const std::string& input);
+json user_badge_utils_toJson(const std::string& input);
+
+} // namespace progressive

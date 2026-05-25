@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string syncPresence(const std::string& json);
-std::string getUserPresence(const std::string& json);
-std::string setUserPresence(const std::string& json);
-std::string getLastActiveAgo(const std::string& json);
-std::string formatPresenceText(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool presence_sync_validate(const std::string& input);
+std::string presence_sync_process(const std::string& input);
+json presence_sync_toJson(const std::string& input);
+
+} // namespace progressive

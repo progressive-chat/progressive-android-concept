@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string scanMedia(const std::string& json);
-std::string isSafeContent(const std::string& json);
-std::string getMediaDimensions(const std::string& json);
-std::string detectBlurHash(const std::string& json);
-std::string formatMediaPreview(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool media_scanner_validate(const std::string& input);
+std::string media_scanner_process(const std::string& input);
+json media_scanner_toJson(const std::string& input);
+
+} // namespace progressive

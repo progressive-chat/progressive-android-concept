@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseMatrixTo(const std::string& json);
-std::string parseMatrixLink(const std::string& json);
-std::string isValidDeeplink(const std::string& json);
-std::string extractRoomId(const std::string& json);
-std::string formatDeeplinkRedirect(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool deeplink_parser_validate(const std::string& input);
+std::string deeplink_parser_process(const std::string& input);
+json deeplink_parser_toJson(const std::string& input);
+
+} // namespace progressive

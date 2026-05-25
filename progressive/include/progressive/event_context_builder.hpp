@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildEventContext(const std::string& json);
-std::string getParentEvent(const std::string& json);
-std::string getChildEvents(const std::string& json);
-std::string isThreadRoot(const std::string& json);
-std::string formatContextBreadcrumb(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_context_builder_validate(const std::string& input);
+std::string event_context_builder_process(const std::string& input);
+json event_context_builder_toJson(const std::string& input);
+
+} // namespace progressive

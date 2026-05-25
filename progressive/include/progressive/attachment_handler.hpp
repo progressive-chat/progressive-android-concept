@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseAttachment(const std::string& json);
-std::string getThumbnailUrl(const std::string& json);
-std::string isEncryptedAttachment(const std::string& json);
-std::string decryptAttachment(const std::string& json);
-std::string buildAttachmentEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool attachment_handler_validate(const std::string& input);
+std::string attachment_handler_process(const std::string& input);
+json attachment_handler_toJson(const std::string& input);
+
+} // namespace progressive

@@ -429,7 +429,7 @@ SyncHandlerResult processSyncResponse(const SyncResponse& response) {
 
 // Original Kotlin: UserAccountDataSyncHandler.handle()
 std::vector<AccountDataSyncResult> processAccountDataSync(
-    const std::vector<UserAccountDataEvent>& events) {
+    const std::vector<Event>& events) {
 
     std::vector<AccountDataSyncResult> results;
 

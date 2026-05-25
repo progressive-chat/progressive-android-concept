@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseMimeType(const std::string& json);
-std::string isSupportedMimeType(const std::string& json);
-std::string getExtensionFromMime(const std::string& json);
-std::string getMimeFromExtension(const std::string& json);
-std::string classifyMediaType(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool mime_type_utils_validate(const std::string& input);
+std::string mime_type_utils_process(const std::string& input);
+json mime_type_utils_toJson(const std::string& input);
+
+} // namespace progressive

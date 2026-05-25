@@ -98,7 +98,7 @@ struct AccountDataSyncResult {
 //   - m.breadcrumbs
 //   - Generic account data (stored as-is)
 std::vector<AccountDataSyncResult> processAccountDataSync(
-    const std::vector<UserAccountDataEvent>& events);
+    const std::vector<Event>& events);
 
 // ---- Room Account Data ----
 

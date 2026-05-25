@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string verifyDeviceKey(const std::string& json);
-std::string verifyCrossSign(const std::string& json);
-std::string checkKeyTrust(const std::string& json);
-std::string getTrustLevel(const std::string& json);
-std::string formatTrustBadge(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool encryption_verify_utils_validate(const std::string& input);
+std::string encryption_verify_utils_process(const std::string& input);
+json encryption_verify_utils_toJson(const std::string& input);
+
+} // namespace progressive

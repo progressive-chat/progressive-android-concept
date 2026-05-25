@@ -1,479 +1,142 @@
 #include "progressive/session_manager.hpp"
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
+#include "progressive/json_parser.hpp"
 #include <sstream>
+#include <algorithm>
 #include <chrono>
-#include <mutex>
-#include <nlohmann/json.hpp>
-#include <android/log.h>
-
-#define LOG_TAG "SessionInfo"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-using json = nlohmann::json;
 
 namespace progressive {
 
-namespace {
-// String utilities
-static std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-}
+SessionList computeSessionList(const std::vector<SessionInfo>& sessions,
+    const std::string& activeUserId) {
+    SessionList list;
+    list.sessions = sessions;
+    list.activeUserId = activeUserId;
 
-static std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) result.push_back(item);
-    return result;
-}
-
-static std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return r;
-}
-
-static bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
-}
-
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-static std::string replaceAll(std::string s, const std::string& from,
-                                const std::string& to) {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
+    for (auto& s : list.sessions) {
+        s.isActive = (s.userId == activeUserId);
+        list.totalUnread += s.unreadCount;
+        list.totalHighlights += s.highlightCount;
     }
-    return s;
+
+    assignSessionIndices(list.sessions);
+    sortSessions(list.sessions);
+
+    return list;
 }
 
-static bool isValidMatrixId(const std::string& id) {
-    return !id.empty() && id.size() <= 255 && id.find(' ') == std::string::npos;
+void assignSessionIndices(std::vector<SessionInfo>& sessions) {
+    for (size_t i = 0; i < sessions.size(); ++i) {
+        sessions[i].sessionIndex = static_cast<int>(i) + 1;
+    }
 }
 
-static uint64_t currentTimeMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
+void sortSessions(std::vector<SessionInfo>& sessions) {
+    std::sort(sessions.begin(), sessions.end(), [](const SessionInfo& a, const SessionInfo& b) {
+        if (a.isActive != b.isActive) return a.isActive;
+        if (a.highlightCount != b.highlightCount) return a.highlightCount > b.highlightCount;
+        return a.lastSyncMs > b.lastSyncMs;
+    });
+}
+
+std::string formatSessionBadge(const SessionInfo& session) {
+    if (session.highlightCount > 0) return "!";
+    if (session.unreadCount > 0) {
+        return session.unreadCount > 99 ? "99+" : std::to_string(session.unreadCount);
+    }
+    return "";
+}
+
+std::string formatSessionInfo(const SessionInfo& session) {
+    std::ostringstream out;
+    out << session.displayName;
+    if (!session.homeServer.empty()) {
+        out << " @" << session.homeServer;
+    }
+    if (!session.displayName.empty() && session.userId != session.displayName) {
+        out << " (" << session.userId << ")";
+    }
+    auto badge = formatSessionBadge(session);
+    if (!badge.empty()) {
+        out << " [" << badge << "]";
+    }
+    if (session.isActive) out << " ← active";
+    return out.str();
+}
+
+bool hasPendingNotifications(const SessionList& list) {
+    return list.totalHighlights > 0;
+}
+
+std::string getRecommendedSession(const SessionList& list, const std::string& excludeUserId) {
+    const SessionInfo* best = nullptr;
+    for (const auto& s : list.sessions) {
+        if (s.userId == excludeUserId) continue;
+        if (!best) best = &s;
+        else if (s.highlightCount > best->highlightCount) best = &s;
+        else if (s.highlightCount == best->highlightCount && s.lastSyncMs > best->lastSyncMs) best = &s;
+    }
+    return best ? best->userId : "";
+}
+
+std::string serializeSession(const SessionPersistence& session) {
+    auto esc = [](const std::string& s) -> std::string {
+        std::string out; for (char c : s) { if (c == '"') out += "\\\""; else out += c; } return out;
+    };
+    std::ostringstream json;
+    json << R"({"userId": ")" << esc(session.userId) << R"(")";
+    json << R"(,"accessToken": ")" << esc(session.accessToken) << R"(")";
+    json << R"(,"homeServerUrl": ")" << esc(session.homeServerUrl) << R"(")";
+    json << R"(,"deviceId": ")" << esc(session.deviceId) << R"(")";
+    json << R"(,"lastUsedMs": )" << session.lastUsedMs;
+    json << R"(,"isActive": )" << (session.isActive ? "true" : "false") << "}";
+    return json.str();
+}
+
+SessionPersistence deserializeSession(const std::string& data) {
+    SessionPersistence session;
+    session.userId        = parseJsonStringValue(data, "userId");
+    session.accessToken   = parseJsonStringValue(data, "accessToken");
+    session.refreshToken  = parseJsonStringValue(data, "refreshToken");
+    session.homeServerUrl = parseJsonStringValue(data, "homeServerUrl");
+    session.deviceId      = parseJsonStringValue(data, "deviceId");
+
+    auto lastUsed = parseJsonStringValue(data, "lastUsedMs");
+    if (!lastUsed.empty()) session.lastUsedMs = std::stoll(lastUsed);
+
+    auto active = parseJsonStringValue(data, "isActive");
+    session.isActive = (active == "true");
+
+    return session;
+}
+
+bool needsTokenRefresh(const SessionPersistence& session, int64_t tokenExpiryMs) {
+    if (tokenExpiryMs <= 0) return false;
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
+    return (tokenExpiryMs - now) < 60000; // less than 1 minute
 }
 
-static std::string generateTxnId() {
-    static std::atomic<uint64_t> counter0;
-    return "txn_" + std::to_string(currentTimeMs()) + "_" +
-           std::to_string(counter.fetch_add(1));
-}
-
-} // anonymous namespace
-
-// ==== SessionInfo Implementation ====
-// Translated from Kotlin: session_manager.kt
-
-SessionInfo::SessionInfo() {
-    LOGI("SessionInfo constructor");
-}
-
-SessionInfo::SessionInfo(const json& config) {
-    LOGI("SessionInfo constructor with config");
-    configure(config);
-}
-
-SessionInfo::~SessionInfo() {
-    onDestroy();
-    LOGI("SessionInfo destructor");
-}
-
-bool SessionInfo::initialize() {
-    LOGI("SessionInfo::initialize");
-    if (m_initialized) return true;
-    m_initialized = true;
-    return true;
-}
-
-void SessionInfo::configure(const json& config) {
-    if (config.empty()) return;
-    m_config = config;
-    LOGI("SessionInfo::configure - config loaded");
-}
-
-void SessionInfo::reset() {
-    LOGW("SessionInfo::reset");
-    m_lastError.clear();
-}
-
-void SessionInfo::setEnabled(bool enabled) {
-    if (m_enabled != enabled) {
-        m_enabled = enabled;
-        LOGI("SessionInfo: enabled = %d", enabled);
+std::string sessionListToJson(const SessionList& list) {
+    auto esc = [](const std::string& s) -> std::string {
+        std::string out; for (char c : s) { if (c == '"') out += "\\\""; else out += c; } return out;
+    };
+    std::ostringstream json;
+    json << R"({"activeUserId": ")" << esc(list.activeUserId) << R"(")";
+    json << R"(,"totalUnread": )" << list.totalUnread << ",";
+    json << R"(,"totalHighlights": )" << list.totalHighlights << ",";
+    json << R"("sessions": [)";
+    for (size_t i = 0; i < list.sessions.size(); ++i) {
+        if (i > 0) json << ",";
+        const auto& s = list.sessions[i];
+        json << R"({"userId": ")" << esc(s.userId) << R"(")";
+        json << R"(,"displayName": ")" << esc(s.displayName) << R"(")";
+        json << R"(,"unreadCount": )" << s.unreadCount << ",";
+        json << R"(,"highlightCount": )" << s.highlightCount << ",";
+        json << R"(,"sessionIndex": )" << s.sessionIndex << ",";
+        json << R"(,"isActive": )" << (s.isActive ? "true" : "false") << "}";
     }
-}
-
-bool SessionInfo::isEnabled() const {
-    return m_enabled;
-}
-
-std::string SessionInfo::getStatus() const {
-    json status;
-    status["class"] = "SessionInfo";
-    status["initialized"] = m_initialized;
-    status["enabled"] = m_enabled;
-    return status.dump();
-}
-
-json SessionInfo::toJson() const {
-    json j;
-    j["type"] = "SessionInfo";
-    j["enabled"] = m_enabled;
-    j["initialized"] = m_initialized;
-    return j;
-}
-
-bool SessionInfo::fromJson(const json& j) {
-    if (j.empty()) return false;
-    m_enabled = j.value("enabled", true);
-    return true;
-}
-
-std::string SessionInfo::lastError() const {
-    return m_lastError;
-}
-
-void SessionInfo::setError(const std::string& error) {
-    m_lastError = error;
-    LOGE("SessionInfo: %s", error.c_str());
-    if (m_errorCallback) m_errorCallback(error);
-}
-
-void SessionInfo::onUpdate(std::function<void(const json&)> cb) {
-    m_updateCallback = std::move(cb);
-}
-
-void SessionInfo::onError(std::function<void(const std::string&)> cb) {
-    m_errorCallback = std::move(cb);
-}
-
-void SessionInfo::notifyUpdate(const json& data) {
-    if (m_updateCallback) m_updateCallback(data);
-}
-
-void SessionInfo::onPause() {
-    LOGI("SessionInfo::onPause");
-    m_paused = true;
-}
-
-void SessionInfo::onResume() {
-    LOGI("SessionInfo::onResume");
-    m_paused = false;
-}
-
-void SessionInfo::onDestroy() {
-    LOGI("SessionInfo::onDestroy");
-    m_updateCallback = nullptr;
-    m_errorCallback = nullptr;
-}
-
-// ==== Cache management ====
-
-void SessionInfo::clearCache() {
-    LOGI("Clearing cache");
-    m_cache.clear();
-}
-
-void SessionInfo::flushCache() {
-    LOGI("Flushing cache");
-}
-
-size_t SessionInfo::cacheSize() const {
-    return m_cache.size();
-}
-
-// ==== Diagnostics ====
-
-std::string SessionInfo::diagnostics() const {
-    json diag;
-    diag["class"] = "SessionInfo";
-    diag["initialized"] = m_initialized;
-    diag["enabled"] = m_enabled;
-    diag["paused"] = m_paused;
-    diag["timestamp"] = currentTimeMs();
-    return diag.dump(2);
-}
-
-void SessionInfo::dumpState() const {
-    LOGI("State dump: %s", diagnostics().c_str());
-}
-
-void SessionInfo::lock() {
-    m_mutex.lock();
-}
-
-void SessionInfo::unlock() {
-    m_mutex.unlock();
-}
-
-bool SessionInfo::tryLock() {
-    return m_mutex.try_lock();
-}
-
-// ==== Batch operations ====
-
-void SessionInfo::beginBatch() {
-    m_batchMode = true;
-}
-
-void SessionInfo::endBatch() {
-    m_batchMode = false;
-    notifyUpdate(json::object());
-}
-
-bool SessionInfo::isBatchMode() const {
-    return m_batchMode;
+    json << "]}";
+    return json.str();
 }
 
 } // namespace progressive
-
-
-
-// ==== Extended session_manager implementation ====
-// Additional methods and utilities generated for completeness
-
-// Serialization helpers
-std::string session_manager::serialize() const {
-    json j = toJson();
-    return j.dump();
-}
-
-bool session_manager::deserialize(const std::string& data) {
-    if (data.empty()) return false;
-    try {
-        json j = json::parse(data);
-        return fromJson(j);
-    } catch (...) {
-        setError("Failed to deserialize data");
-        return false;
-    }
-}
-
-// Validation helpers
-bool session_manager::validate() const {
-    if (!m_initialized) {
-        LOGE("session_manager: not initialized");
-        return false;
-    }
-    return true;
-}
-
-// Storage helpers
-bool session_manager::save(const std::string& path) const {
-    std::string data = serialize();
-    if (data.empty()) return false;
-    std::ofstream f(path);
-    if (!f) return false;
-    f << data;
-    return true;
-}
-
-bool session_manager::load(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) return false;
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return deserialize(ss.str());
-}
-
-// Metrics and statistics
-json session_manager::getMetrics() const {
-    json m;
-    m["class"] = "session_manager";
-    m["initialized"] = m_initialized;
-    m["enabled"] = m_enabled;
-    m["paused"] = m_paused;
-    m["timestamp"] = currentTimeMs();
-    return m;
-}
-
-int session_manager::getOperationCount() const {
-    return m_operationCount;
-}
-
-void session_manager::resetOperationCount() {
-    m_operationCount = 0;
-}
-
-// Event emission
-void session_manager::emitEvent(const std::string& eventType, const json& data) {
-    json event;
-    event["type"] = eventType;
-    event["source"] = "session_manager";
-    event["data"] = data;
-    event["timestamp"] = currentTimeMs();
-    notifyUpdate(event);
-}
-
-// Policy checking
-bool session_manager::checkPolicy(const std::string& policy, const json& context) {
-    (void)policy;
-    (void)context;
-    return true;
-}
-
-// Access control
-bool session_manager::canAccess(const std::string& userId, const std::string& resource) {
-    (void)userId;
-    (void)resource;
-    return true;
-}
-
-// Rate limiting
-bool session_manager::checkRateLimit(const std::string& key, int maxRequests, int windowMs) {
-    auto now = currentTimeMs();
-    auto& window = m_rateLimitWindows[key];
-    if (now - window.startTime > windowMs) {
-        window.startTime = now;
-        window.count = 0;
-    }
-    if (window.count >= maxRequests) return false;
-    window.count++;
-    return true;
-}
-
-// Observation pattern
-void session_manager::addObserver(const std::string& observerId) {
-    m_observers.insert(observerId);
-}
-
-void session_manager::removeObserver(const std::string& observerId) {
-    m_observers.erase(observerId);
-}
-
-int session_manager::observerCount() const {
-    return static_cast<int>(m_observers.size());
-}
-
-void session_manager::notifyObservers(const json& data) {
-    notifyUpdate(data);
-}
-
-// Factory pattern
-std::shared_ptr<void> session_manager::createInstance() {
-    return nullptr;
-}
-
-// Iterator pattern
-std::vector<std::string> session_manager::listItems() const {
-    return {};
-}
-
-int session_manager::itemCount() const {
-    return 0;
-}
-
-// Versioning
-std::string session_manager::getVersion() const {
-    return "1.0.0";
-}
-
-bool session_manager::checkVersion(const std::string& requiredVersion) {
-    return getVersion() >= requiredVersion;
-}
-
-// Feature flags
-bool session_manager::isFeatureEnabled(const std::string& feature) const {
-    auto it = m_features.find(feature);
-    return it != m_features.end() && it->second;
-}
-
-void session_manager::setFeature(const std::string& feature, bool enabled) {
-    m_features[feature] = enabled;
-}
-
-std::vector<std::string> session_manager::getEnabledFeatures() const {
-    std::vector<std::string> result;
-    for (auto& [feature, enabled] : m_features) {
-        if (enabled) result.push_back(feature);
-    }
-    return result;
-}
-
-// Data migration
-bool session_manager::migrateData(int fromVersion, int toVersion) {
-    LOGI("session_manager: migrating data from v%d to v%d", fromVersion, toVersion);
-    return true;
-}
-
-int session_manager::getDataVersion() const {
-    return m_dataVersion;
-}
-
-// Import/Export
-json session_manager::exportData() const {
-    return toJson();
-}
-
-bool session_manager::importData(const json& data) {
-    return fromJson(data);
-}
-
-// Cleanup
-void session_manager::performCleanup() {
-    LOGI("session_manager: performing cleanup");
-    m_cache.clear();
-    m_observers.clear();
-    m_features.clear();
-    m_rateLimitWindows.clear();
-}
-
-// Memory management
-size_t session_manager::memoryUsage() const {
-    size_t usage = sizeof(*this);
-    usage += m_cache.size() * sizeof(std::string) * 100;
-    usage += m_observers.size() * sizeof(std::string) * 50;
-    usage += m_features.size() * (sizeof(std::string) + sizeof(bool));
-    return usage;
-}
-
-// Transaction support
-bool session_manager::beginTransaction() {
-    if (m_inTransaction) return false;
-    m_inTransaction = true;
-    m_transactionData = json::object();
-    return true;
-}
-
-bool session_manager::commitTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    notifyUpdate(m_transactionData);
-    return true;
-}
-
-bool session_manager::rollbackTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    m_transactionData = json::object();
-    return true;
-}
-
-// Logging helpers
-void session_manager::logDebug(const std::string& msg) const {
-    LOGI("session_manager: %s", msg.c_str());
-}
-
-void session_manager::logWarning(const std::string& msg) const {
-    LOGW("session_manager: %s", msg.c_str());
-}
-
-void session_manager::logError(const std::string& msg) const {
-    LOGE("session_manager: %s", msg.c_str());
-}

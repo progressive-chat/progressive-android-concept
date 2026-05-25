@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string addToBatch(const std::string& json);
-std::string flushBatch(const std::string& json);
-std::string batchSize(const std::string& json);
-std::string getPendingEvents(const std::string& json);
-std::string clearBatch(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_batcher_validate(const std::string& input);
+std::string event_batcher_process(const std::string& input);
+json event_batcher_toJson(const std::string& input);
+
+} // namespace progressive

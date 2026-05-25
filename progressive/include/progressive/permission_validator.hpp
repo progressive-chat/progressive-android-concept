@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string checkRoomPermission(const std::string& json);
-std::string getPowerLevel(const std::string& json);
-std::string canSendMessage(const std::string& json);
-std::string canInviteUser(const std::string& json);
-std::string formatPermissionDenied(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool permission_validator_validate(const std::string& input);
+std::string permission_validator_process(const std::string& input);
+json permission_validator_toJson(const std::string& input);
+
+} // namespace progressive

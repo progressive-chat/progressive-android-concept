@@ -2,10 +2,6 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
-#include <android/log.h>
-
-#define JV_LOG_TAG "JsonViewer"
-#define JV_LOGI(...) __android_log_print(ANDROID_LOG_INFO, JV_LOG_TAG, __VA_ARGS__)
 
 namespace progressive::jsonviewer {
 
@@ -49,9 +45,8 @@ JsonNode JsonViewer::buildNode(const std::string& key, const json& value, int de
     node.depth = depth;
     node.dataSize = estimateSize(value);
     node.expanded = depth < 2;
-
     if (value.is_object()) {
-        node.childCount = value.size();
+        node.childCount = static_cast<int>(value.size());
         node.value = "{...} (" + std::to_string(value.size()) + ")";
         if (node.expanded) {
             for (auto it = value.begin(); it != value.end(); ++it) {
@@ -59,7 +54,7 @@ JsonNode JsonViewer::buildNode(const std::string& key, const json& value, int de
             }
         }
     } else if (value.is_array()) {
-        node.childCount = value.size();
+        node.childCount = static_cast<int>(value.size());
         node.value = "[...] (" + std::to_string(value.size()) + ")";
         if (node.expanded) {
             int idx = 0;
@@ -75,17 +70,13 @@ JsonNode JsonViewer::buildNode(const std::string& key, const json& value, int de
 }
 
 std::string JsonViewer::format(bool pretty, int indent) {
-    if (pretty) return m_root.dump(indent);
-    return m_root.dump();
+    return pretty ? m_root.dump(indent) : m_root.dump();
 }
 
 json JsonViewer::search(const std::string& path) {
-    // Simple dot/bracket notation path search
-    // e.g., "content.body", "users[0].name"
     json current = m_root;
     std::istringstream ss(path);
     std::string segment;
-
     while (std::getline(ss, segment, '.')) {
         size_t bracket = segment.find('[');
         if (bracket != std::string::npos) {
@@ -105,20 +96,14 @@ json JsonViewer::search(const std::string& path) {
     return current;
 }
 
-json JsonViewer::query(const std::string& jsonPath) {
-    return search(jsonPath);
-}
-
-void JsonViewer::expandAll() { /* Flag all nodes expanded */ }
-void JsonViewer::collapseAll() { /* Flag all nodes collapsed */ }
-void JsonViewer::expandToDepth(int maxDepth) { /* Expand up to depth */ }
+json JsonViewer::query(const std::string& jsonPath) { return search(jsonPath); }
+void JsonViewer::expandAll() {}
+void JsonViewer::collapseAll() {}
+void JsonViewer::expandToDepth(int /*maxDepth*/) {}
 
 void JsonViewer::traverse(NodeCallback cb) {
     auto tree = buildTree();
-    for (auto& node : tree) {
-        cb(node);
-        // Would recursively traverse children
-    }
+    for (auto& node : tree) cb(node);
 }
 
 std::string JsonViewer::typeName(const json& value) {
@@ -133,8 +118,8 @@ std::string JsonViewer::typeName(const json& value) {
 }
 
 std::string JsonViewer::formatValue(const json& value) {
-    if (value.is_string()) return "\"" + escapeString(value) + "\"";
-    if (value.is_boolean()) return value ? "true" : "false";
+    if (value.is_string()) return value.get<std::string>();
+    if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
     if (value.is_null()) return "null";
     if (value.is_number()) {
         std::ostringstream os;
@@ -147,15 +132,12 @@ std::string JsonViewer::formatValue(const json& value) {
 std::string JsonViewer::escapeString(const std::string& s) {
     std::ostringstream os;
     for (char c : s) {
-        switch (c) {
-            case '"': os << "\\""; break;
-            case '\\': os << "\\\\"; break;
-            case '
-': os << "\\n"; break;
-            case '': os << "\\r"; break;
-            case '	': os << "\\t"; break;
-            default: os << c;
-        }
+        if (c == '"') os << "\\\"";
+        else if (c == '\\') os << "\\\\";
+        else if (c == '\n') os << "\\n";
+        else if (c == '\r') os << "\\r";
+        else if (c == '\t') os << "\\t";
+        else os << c;
     }
     return os.str();
 }

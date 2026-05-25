@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string searchEmoji(const std::string& json);
-std::string getEmojiByCategory(const std::string& json);
-std::string getEmojiVariations(const std::string& json);
-std::string isValidEmojiCodepoint(const std::string& json);
-std::string formatEmojiPicker(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool emoji_search_validate(const std::string& input);
+std::string emoji_search_process(const std::string& input);
+json emoji_search_toJson(const std::string& input);
+
+} // namespace progressive

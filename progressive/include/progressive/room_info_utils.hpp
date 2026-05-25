@@ -1,20 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string roomId;(const std::string& json);
-std::string name;(const std::string& json);
-std::string topic;(const std::string& json);
-std::string avatarUrl;(const std::string& json);
-std::string joinRule;(const std::string& json);
-std::string RoomInfo parseRoomInfo(const std(const std::string& json);
-std::string string& json, const std(const std::string& json);
-std::string string& roomId);(const std::string& json);
-std::string formatRoomHeader(const RoomInfo& info);(const std::string& json);
-std::string parseRoomDisplayName(const std(const std::string& json);
-std::string string& nameEvent, const std(const std::string& json);
-std::string string& canonicalAlias,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& roomId, const std(const std::string& json);
-std::string vector<std(const std::string& json);
-std::string string>& memberNames);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_info_utils_validate(const std::string& input);
+std::string room_info_utils_process(const std::string& input);
+json room_info_utils_toJson(const std::string& input);
+
+} // namespace progressive

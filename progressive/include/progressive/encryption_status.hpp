@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string getRoomEncryption(const std::string& json);
-std::string isEncrypted(const std::string& json);
-std::string getAlgorithm(const std::string& json);
-std::string isKeyShared(const std::string& json);
-std::string formatEncryptionBadge(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool encryption_status_validate(const std::string& input);
+std::string encryption_status_process(const std::string& input);
+json encryption_status_toJson(const std::string& input);
+
+} // namespace progressive

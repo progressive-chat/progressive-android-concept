@@ -26,6 +26,7 @@ if(ANDROID)
     target_compile_definitions(matrix_sdk PRIVATE MATRIX_SDK_ANDROID)
 endif()
 
-if(OpenSSL_FOUND OR ANDROID)
+find_package(OpenSSL QUIET)
+if(OpenSSL_FOUND)
     target_link_libraries(matrix_sdk PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endif()

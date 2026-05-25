@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
+
 namespace progressive {
-std::string buildStatusMessage(const std::string& status, const std::string& emoji="");
-std::string parseStatusMessage(const std::string& json);
-bool isStatusExpired(int64_t setAtMs, int64_t maxAgeMs=86400000);
-}
+
+using json = nlohmann::json;
+
+bool user_status_message_utils_validate(const std::string& input);
+std::string user_status_message_utils_process(const std::string& input);
+json user_status_message_utils_toJson(const std::string& input);
+
+} // namespace progressive

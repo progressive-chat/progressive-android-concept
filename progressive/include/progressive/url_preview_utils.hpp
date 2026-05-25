@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseOpenGraph(const std::string& json);
-std::string extractMetadata(const std::string& json);
-std::string buildPreviewSnippet(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool url_preview_utils_validate(const std::string& input);
+std::string url_preview_utils_process(const std::string& input);
+json url_preview_utils_toJson(const std::string& input);
+
+} // namespace progressive

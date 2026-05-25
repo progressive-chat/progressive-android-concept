@@ -1,14 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string creator;(const std::string& json);
-std::string roomVersion;(const std::string& json);
-std::string predecessorRoomId;   // if upgraded(const std::string& json);
-std::string RoomCreateInfo parseRoomCreate(const std::string& json);
-std::string buildCreateRoomRequest(const std(const std::string& json);
-std::string string& name, const std(const std::string& json);
-std::string string& topic,(const std::string& json);
-std::string bool isDirect, const std(const std::string& json);
-std::string string& preset = "private_chat");(const std::string& json);
-std::string formatRoomCreateInfo(const RoomCreateInfo& info);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_create_utils_validate(const std::string& input);
+std::string room_create_utils_process(const std::string& input);
+json room_create_utils_toJson(const std::string& input);
+
+} // namespace progressive

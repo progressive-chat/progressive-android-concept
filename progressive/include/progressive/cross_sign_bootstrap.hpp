@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string bootstrapCrossSign(const std::string& json);
-std::string getBootstrapStatus(const std::string& json);
-std::string isBootstrapped(const std::string& json);
-std::string resetCrossSign(const std::string& json);
-std::string formatBootstrapStep(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool cross_sign_bootstrap_validate(const std::string& input);
+std::string cross_sign_bootstrap_process(const std::string& input);
+json cross_sign_bootstrap_toJson(const std::string& input);
+
+} // namespace progressive

@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
+
 namespace progressive {
-struct ThreePid { std::string medium; std::string address; bool validated=false; int64_t addedAtMs=0; };
-std::string buildEmailRequest(const std::string& email, const std::string& clientSecret, int sendAttempt);
-std::string buildPhoneRequest(const std::string& phone, const std::string& clientSecret, int sendAttempt);
-ThreePid parseThreePid(const std::string& json);
-bool isEmailBound(const std::string& json, const std::string& email);
-}
+
+using json = nlohmann::json;
+
+bool three_pid_utils_validate(const std::string& input);
+std::string three_pid_utils_process(const std::string& input);
+json three_pid_utils_toJson(const std::string& input);
+
+} // namespace progressive

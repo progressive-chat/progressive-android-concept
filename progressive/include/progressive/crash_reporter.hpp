@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string captureCrash(const std::string& json);
-std::string formatStackTrace(const std::string& json);
-std::string getDeviceInfo(const std::string& json);
-std::string buildCrashReport(const std::string& json);
-std::string sendCrashReport(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool crash_reporter_validate(const std::string& input);
+std::string crash_reporter_process(const std::string& input);
+json crash_reporter_toJson(const std::string& input);
+
+} // namespace progressive

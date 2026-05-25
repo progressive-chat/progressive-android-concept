@@ -1,7 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string buildContentWarning(const std::string& reason);
-std::string parseContentWarning(const std::string& json);
-bool hasContentWarning(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool content_warning_utils_validate(const std::string& input);
+std::string content_warning_utils_process(const std::string& input);
+json content_warning_utils_toJson(const std::string& input);
+
+} // namespace progressive

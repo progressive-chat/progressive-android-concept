@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseGeoUri(const std::string& json);
-std::string buildLocationEvent(const std::string& json);
-std::string calculateDistance(const std::string& json);
-std::string isValidGeoCoordinates(const std::string& json);
-std::string renderStaticMapUrl(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool location_utils_validate(const std::string& input);
+std::string location_utils_process(const std::string& input);
+json location_utils_toJson(const std::string& input);
+
+} // namespace progressive

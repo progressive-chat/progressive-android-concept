@@ -1,22 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string keyword;        // word to highlight(const std::string& json);
-std::string color;          // hex color or name(const std::string& json);
-std::string bool hasHighlight(const std(const std::string& json);
-std::string string& text, const std(const std::string& json);
-std::string vector<HighlightRule>& rules);(const std::string& json);
-std::string applyHighlights(const std(const std::string& json);
-std::string string& text, const std(const std::string& json);
-std::string vector<HighlightRule>& rules);(const std::string& json);
-std::string buildHighlightPushRule(const std(const std::string& json);
-std::string vector<HighlightRule>& rules, const std(const std::string& json);
-std::string string& ruleId);(const std::string& json);
-std::string std(const std::string& json);
-std::string vector<HighlightRule> parseHighlightRules(const std(const std::string& json);
-std::string string& pushRuleJson);(const std::string& json);
-std::string formatHighlightedNotification(const std(const std::string& json);
-std::string string& senderName,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& body,(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool highlight_formatter_validate(const std::string& input);
+std::string highlight_formatter_process(const std::string& input);
+json highlight_formatter_toJson(const std::string& input);
+
+} // namespace progressive

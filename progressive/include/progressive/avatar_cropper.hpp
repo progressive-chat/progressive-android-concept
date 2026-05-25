@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseCropRegion(const std::string& json);
-std::string computeCrop(const std::string& json);
-std::string applyCrop(const std::string& json);
-std::string validateAspectRatio(const std::string& json);
-std::string formatCropParams(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool avatar_cropper_validate(const std::string& input);
+std::string avatar_cropper_process(const std::string& input);
+json avatar_cropper_toJson(const std::string& input);
+
+} // namespace progressive

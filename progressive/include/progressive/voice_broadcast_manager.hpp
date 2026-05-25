@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string startBroadcast(const std::string& json);
-std::string stopBroadcast(const std::string& json);
-std::string getBroadcastState(const std::string& json);
-std::string getListenerCount(const std::string& json);
-std::string formatBroadcastChunk(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool voice_broadcast_manager_validate(const std::string& input);
+std::string voice_broadcast_manager_process(const std::string& input);
+json voice_broadcast_manager_toJson(const std::string& input);
+
+} // namespace progressive

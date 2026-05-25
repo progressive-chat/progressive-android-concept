@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseCallStart(const std::string& json);
-std::string formatDuration(const std::string& json);
-std::string isCallActive(const std::string& json);
-std::string getCallType(const std::string& json);
-std::string buildCallSummary(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool call_duration_validate(const std::string& input);
+std::string call_duration_process(const std::string& input);
+json call_duration_toJson(const std::string& input);
+
+} // namespace progressive

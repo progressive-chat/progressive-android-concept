@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string searchUsers(const std::string& json);
-std::string parseSearchResults(const std::string& json);
-std::string isExactMatch(const std::string& json);
-std::string rankByRelevance(const std::string& json);
-std::string formatSearchResult(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool user_directory_search_validate(const std::string& input);
+std::string user_directory_search_process(const std::string& input);
+json user_directory_search_toJson(const std::string& input);
+
+} // namespace progressive

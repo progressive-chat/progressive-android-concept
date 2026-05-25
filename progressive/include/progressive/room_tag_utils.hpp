@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseRoomTags(const std::string& json);
-std::string addRoomTag(const std::string& json);
-std::string removeRoomTag(const std::string& json);
-std::string buildTagEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_tag_utils_validate(const std::string& input);
+std::string room_tag_utils_process(const std::string& input);
+json room_tag_utils_toJson(const std::string& input);
+
+} // namespace progressive

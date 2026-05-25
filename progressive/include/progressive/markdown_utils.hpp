@@ -1,8 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseMarkdownToHtml(const std::string& json);
-std::string parseHtmlToPlain(const std::string& json);
-std::string stripMarkdownSyntax(const std::string& json);
-std::string extractLinksFromMarkdown(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool markdown_utils_validate(const std::string& input);
+std::string markdown_utils_process(const std::string& input);
+json markdown_utils_toJson(const std::string& input);
+
+} // namespace progressive

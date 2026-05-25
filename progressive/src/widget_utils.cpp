@@ -1,494 +1,138 @@
 #include "progressive/widget_utils.hpp"
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
+#include "progressive/json_parser.hpp"
 #include <sstream>
-#include <chrono>
-#include <mutex>
-#include <nlohmann/json.hpp>
-#include <android/log.h>
-
-#define LOG_TAG "WidgetInfo"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-using json = nlohmann::json;
+#include <regex>
+#include <algorithm>
 
 namespace progressive {
 
-namespace {
-// String utilities
-static std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
+WidgetInfo parseWidgetStateContent(const std::string& stateContentJson, const std::string& widgetId, const std::string& roomId) {
+    WidgetInfo w;
+    w.widgetId = widgetId;
+    w.roomId = roomId;
+    w.name = parseJsonStringValue(stateContentJson, "name");
+    w.type = parseJsonStringValue(stateContentJson, "type");
+    w.url  = parseJsonStringValue(stateContentJson, "url");
+    w.creatorUserId = parseJsonStringValue(stateContentJson, "creatorUserId");
+    w.avatarUrl = parseJsonStringValue(stateContentJson, "avatar_url");
+
+    auto data = parseJsonStringValue(stateContentJson, "data");
+    if (!data.empty()) {
+        w.name = parseJsonStringValue("{" + data + "}", "title");
+    }
+
+    return w;
 }
 
-static std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) result.push_back(item);
-    return result;
+std::string buildWidgetContent(const WidgetInfo& widget) {
+    auto esc = [](const std::string& s) -> std::string {
+        std::string out;
+        for (char c : s) { if (c == '"') out += "\\\""; else out += c; }
+        return out;
+    };
+    std::ostringstream json;
+    json << "{";
+    json << R"("id": ")" << esc(widget.widgetId) << R"(",)";
+    json << R"("type": ")" << esc(widget.type) << R"(",)";
+    json << R"("url": ")" << esc(widget.url) << R"(",)";
+    json << R"("name": ")" << esc(widget.name) << R"(",)";
+    json << R"("creatorUserId": ")" << esc(widget.creatorUserId) << R"(",)";
+    json << R"("data": {)";
+    json << R"("title": ")" << esc(widget.name) << R"(")";
+    json << "}}";
+    return json.str();
 }
 
-static std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return r;
+bool isValidWidgetUrl(const std::string& url) {
+    return url.rfind("https://", 0) == 0 && url.size() > 8;
 }
 
-static bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
+bool isJitsiWidget(const std::string& type) {
+    return type == "m.jitsi" || type == "jitsi";
 }
 
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+bool isEtherpadWidget(const std::string& type) {
+    return type == "m.etherpad" || type == "etherpad";
 }
 
-static std::string replaceAll(std::string s, const std::string& from,
-                                const std::string& to) {
+std::string getWidgetTypeName(const std::string& type) {
+    if (isJitsiWidget(type)) return "Video Conference";
+    if (isEtherpadWidget(type)) return "Collaborative Document";
+    if (type == "m.custom") return "Custom Widget";
+    if (type == "m.stickerpicker") return "Sticker Picker";
+    if (type == "m.calculator") return "Calculator";
+    return type;
+}
+
+std::vector<WidgetInfo> listRoomWidgets(const std::string& stateEventsJson) {
+    std::vector<WidgetInfo> widgets;
+    // Each widget is stored as a state event with type "im.vector.modular.widgets"
+    // The state key is the widget ID, the content has widget data
+
     size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
+    while (true) {
+        pos = stateEventsJson.find("\"im.vector.modular.widgets\"", pos);
+        if (pos == std::string::npos) break;
+
+        auto objStart = stateEventsJson.rfind('{', pos);
+        if (objStart == std::string::npos) break;
+
+        int depth = 0;
+        auto objEnd = objStart;
+        while (objEnd < stateEventsJson.size()) {
+            if (stateEventsJson[objEnd] == '{') ++depth;
+            else if (stateEventsJson[objEnd] == '}') --depth;
+            if (depth == 0) break;
+            ++objEnd;
+        }
+        if (objEnd >= stateEventsJson.size()) break;
+
+        std::string obj = stateEventsJson.substr(objStart, objEnd - objStart + 1);
+
+        auto content = parseJsonStringValue(obj, "content");
+        auto stateKey = parseJsonStringValue(obj, "state_key");
+
+        if (!content.empty() && !stateKey.empty()) {
+            WidgetInfo w;
+            w.widgetId = stateKey;
+            w.type = parseJsonStringValue("{" + content + "}", "type");
+            w.url  = parseJsonStringValue("{" + content + "}", "url");
+            w.name = parseJsonStringValue("{" + content + "}", "name");
+            if (w.name.empty()) w.name = w.widgetId;
+            widgets.push_back(w);
+        }
+
+        pos = objEnd + 1;
     }
-    return s;
+
+    return widgets;
 }
 
-static bool isValidMatrixId(const std::string& id) {
-    return !id.empty() && id.size() <= 255 && id.find(' ') == std::string::npos;
+std::string widgetToJson(const WidgetInfo& widget) {
+    auto esc = [](const std::string& s) -> std::string {
+        std::string out; for (char c : s) { if (c == '"') out += "\\\""; else out += c; } return out;
+    };
+    std::ostringstream json;
+    json << R"({"widgetId": ")" << esc(widget.widgetId) << R"(")";
+    json << R"(,"name": ")" << esc(widget.name) << R"(")";
+    json << R"(,"type": ")" << esc(widget.type) << R"(")";
+    json << R"(,"typeName": ")" << esc(getWidgetTypeName(widget.type)) << R"(")";
+    json << R"(,"url": ")" << esc(widget.url) << R"(")";
+    json << "}";
+    return json.str();
 }
 
-static uint64_t currentTimeMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
-static std::string generateTxnId() {
-    static std::atomic<uint64_t> counter0;
-    return "txn_" + std::to_string(currentTimeMs()) + "_" +
-           std::to_string(counter.fetch_add(1));
-}
-
-} // anonymous namespace
-
-// ==== WidgetInfo Implementation ====
-// Translated from Kotlin: widget_utils.kt
-
-WidgetInfo::WidgetInfo() {
-    LOGI("WidgetInfo constructor");
-}
-
-WidgetInfo::WidgetInfo(const json& config) {
-    LOGI("WidgetInfo constructor with config");
-    configure(config);
-}
-
-WidgetInfo::~WidgetInfo() {
-    onDestroy();
-    LOGI("WidgetInfo destructor");
-}
-
-bool WidgetInfo::initialize() {
-    LOGI("WidgetInfo::initialize");
-    if (m_initialized) return true;
-    m_initialized = true;
-    return true;
-}
-
-void WidgetInfo::configure(const json& config) {
-    if (config.empty()) return;
-    m_config = config;
-    LOGI("WidgetInfo::configure - config loaded");
-}
-
-void WidgetInfo::reset() {
-    LOGW("WidgetInfo::reset");
-    m_lastError.clear();
-}
-
-void WidgetInfo::setEnabled(bool enabled) {
-    if (m_enabled != enabled) {
-        m_enabled = enabled;
-        LOGI("WidgetInfo: enabled = %d", enabled);
+bool isReasonablePermission(const std::string& permission, const std::string& widgetType) {
+    if (isJitsiWidget(widgetType)) {
+        return permission == "camera" || permission == "microphone";
     }
+    return false;
 }
 
-bool WidgetInfo::isEnabled() const {
-    return m_enabled;
-}
-
-std::string WidgetInfo::getStatus() const {
-    json status;
-    status["class"] = "WidgetInfo";
-    status["initialized"] = m_initialized;
-    status["enabled"] = m_enabled;
-    return status.dump();
-}
-
-json WidgetInfo::toJson() const {
-    json j;
-    j["type"] = "WidgetInfo";
-    j["enabled"] = m_enabled;
-    j["initialized"] = m_initialized;
-    return j;
-}
-
-bool WidgetInfo::fromJson(const json& j) {
-    if (j.empty()) return false;
-    m_enabled = j.value("enabled", true);
-    return true;
-}
-
-std::string WidgetInfo::lastError() const {
-    return m_lastError;
-}
-
-void WidgetInfo::setError(const std::string& error) {
-    m_lastError = error;
-    LOGE("WidgetInfo: %s", error.c_str());
-    if (m_errorCallback) m_errorCallback(error);
-}
-
-void WidgetInfo::onUpdate(std::function<void(const json&)> cb) {
-    m_updateCallback = std::move(cb);
-}
-
-void WidgetInfo::onError(std::function<void(const std::string&)> cb) {
-    m_errorCallback = std::move(cb);
-}
-
-void WidgetInfo::notifyUpdate(const json& data) {
-    if (m_updateCallback) m_updateCallback(data);
-}
-
-void WidgetInfo::onPause() {
-    LOGI("WidgetInfo::onPause");
-    m_paused = true;
-}
-
-void WidgetInfo::onResume() {
-    LOGI("WidgetInfo::onResume");
-    m_paused = false;
-}
-
-void WidgetInfo::onDestroy() {
-    LOGI("WidgetInfo::onDestroy");
-    m_updateCallback = nullptr;
-    m_errorCallback = nullptr;
-}
-
-// ==== Widget methods ====
-
-bool WidgetInfo::loadWidget(const std::string& widgetId) {
-    LOGI("Loading widget: %s", widgetId.c_str());
-    return true;
-}
-
-void WidgetInfo::unloadWidget(const std::string& widgetId) {
-    LOGI("Unloading widget: %s", widgetId.c_str());
-}
-
-std::string WidgetInfo::getWidgetUrl(const std::string& widgetId) {
-    return "";
-}
-
-// ==== Cache management ====
-
-void WidgetInfo::clearCache() {
-    LOGI("Clearing cache");
-    m_cache.clear();
-}
-
-void WidgetInfo::flushCache() {
-    LOGI("Flushing cache");
-}
-
-size_t WidgetInfo::cacheSize() const {
-    return m_cache.size();
-}
-
-// ==== Diagnostics ====
-
-std::string WidgetInfo::diagnostics() const {
-    json diag;
-    diag["class"] = "WidgetInfo";
-    diag["initialized"] = m_initialized;
-    diag["enabled"] = m_enabled;
-    diag["paused"] = m_paused;
-    diag["timestamp"] = currentTimeMs();
-    return diag.dump(2);
-}
-
-void WidgetInfo::dumpState() const {
-    LOGI("State dump: %s", diagnostics().c_str());
-}
-
-void WidgetInfo::lock() {
-    m_mutex.lock();
-}
-
-void WidgetInfo::unlock() {
-    m_mutex.unlock();
-}
-
-bool WidgetInfo::tryLock() {
-    return m_mutex.try_lock();
-}
-
-// ==== Batch operations ====
-
-void WidgetInfo::beginBatch() {
-    m_batchMode = true;
-}
-
-void WidgetInfo::endBatch() {
-    m_batchMode = false;
-    notifyUpdate(json::object());
-}
-
-bool WidgetInfo::isBatchMode() const {
-    return m_batchMode;
+std::string formatPermissionRequest(const std::string& widgetName, const std::string& permission) {
+    std::ostringstream out;
+    out << "\"" << widgetName << "\" is requesting \"" << permission << "\" access.";
+    return out.str();
 }
 
 } // namespace progressive
-
-
-
-// ==== Extended widget_utils implementation ====
-// Additional methods and utilities generated for completeness
-
-// Serialization helpers
-std::string widget_utils::serialize() const {
-    json j = toJson();
-    return j.dump();
-}
-
-bool widget_utils::deserialize(const std::string& data) {
-    if (data.empty()) return false;
-    try {
-        json j = json::parse(data);
-        return fromJson(j);
-    } catch (...) {
-        setError("Failed to deserialize data");
-        return false;
-    }
-}
-
-// Validation helpers
-bool widget_utils::validate() const {
-    if (!m_initialized) {
-        LOGE("widget_utils: not initialized");
-        return false;
-    }
-    return true;
-}
-
-// Storage helpers
-bool widget_utils::save(const std::string& path) const {
-    std::string data = serialize();
-    if (data.empty()) return false;
-    std::ofstream f(path);
-    if (!f) return false;
-    f << data;
-    return true;
-}
-
-bool widget_utils::load(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) return false;
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return deserialize(ss.str());
-}
-
-// Metrics and statistics
-json widget_utils::getMetrics() const {
-    json m;
-    m["class"] = "widget_utils";
-    m["initialized"] = m_initialized;
-    m["enabled"] = m_enabled;
-    m["paused"] = m_paused;
-    m["timestamp"] = currentTimeMs();
-    return m;
-}
-
-int widget_utils::getOperationCount() const {
-    return m_operationCount;
-}
-
-void widget_utils::resetOperationCount() {
-    m_operationCount = 0;
-}
-
-// Event emission
-void widget_utils::emitEvent(const std::string& eventType, const json& data) {
-    json event;
-    event["type"] = eventType;
-    event["source"] = "widget_utils";
-    event["data"] = data;
-    event["timestamp"] = currentTimeMs();
-    notifyUpdate(event);
-}
-
-// Policy checking
-bool widget_utils::checkPolicy(const std::string& policy, const json& context) {
-    (void)policy;
-    (void)context;
-    return true;
-}
-
-// Access control
-bool widget_utils::canAccess(const std::string& userId, const std::string& resource) {
-    (void)userId;
-    (void)resource;
-    return true;
-}
-
-// Rate limiting
-bool widget_utils::checkRateLimit(const std::string& key, int maxRequests, int windowMs) {
-    auto now = currentTimeMs();
-    auto& window = m_rateLimitWindows[key];
-    if (now - window.startTime > windowMs) {
-        window.startTime = now;
-        window.count = 0;
-    }
-    if (window.count >= maxRequests) return false;
-    window.count++;
-    return true;
-}
-
-// Observation pattern
-void widget_utils::addObserver(const std::string& observerId) {
-    m_observers.insert(observerId);
-}
-
-void widget_utils::removeObserver(const std::string& observerId) {
-    m_observers.erase(observerId);
-}
-
-int widget_utils::observerCount() const {
-    return static_cast<int>(m_observers.size());
-}
-
-void widget_utils::notifyObservers(const json& data) {
-    notifyUpdate(data);
-}
-
-// Factory pattern
-std::shared_ptr<void> widget_utils::createInstance() {
-    return nullptr;
-}
-
-// Iterator pattern
-std::vector<std::string> widget_utils::listItems() const {
-    return {};
-}
-
-int widget_utils::itemCount() const {
-    return 0;
-}
-
-// Versioning
-std::string widget_utils::getVersion() const {
-    return "1.0.0";
-}
-
-bool widget_utils::checkVersion(const std::string& requiredVersion) {
-    return getVersion() >= requiredVersion;
-}
-
-// Feature flags
-bool widget_utils::isFeatureEnabled(const std::string& feature) const {
-    auto it = m_features.find(feature);
-    return it != m_features.end() && it->second;
-}
-
-void widget_utils::setFeature(const std::string& feature, bool enabled) {
-    m_features[feature] = enabled;
-}
-
-std::vector<std::string> widget_utils::getEnabledFeatures() const {
-    std::vector<std::string> result;
-    for (auto& [feature, enabled] : m_features) {
-        if (enabled) result.push_back(feature);
-    }
-    return result;
-}
-
-// Data migration
-bool widget_utils::migrateData(int fromVersion, int toVersion) {
-    LOGI("widget_utils: migrating data from v%d to v%d", fromVersion, toVersion);
-    return true;
-}
-
-int widget_utils::getDataVersion() const {
-    return m_dataVersion;
-}
-
-// Import/Export
-json widget_utils::exportData() const {
-    return toJson();
-}
-
-bool widget_utils::importData(const json& data) {
-    return fromJson(data);
-}
-
-// Cleanup
-void widget_utils::performCleanup() {
-    LOGI("widget_utils: performing cleanup");
-    m_cache.clear();
-    m_observers.clear();
-    m_features.clear();
-    m_rateLimitWindows.clear();
-}
-
-// Memory management
-size_t widget_utils::memoryUsage() const {
-    size_t usage = sizeof(*this);
-    usage += m_cache.size() * sizeof(std::string) * 100;
-    usage += m_observers.size() * sizeof(std::string) * 50;
-    usage += m_features.size() * (sizeof(std::string) + sizeof(bool));
-    return usage;
-}
-
-// Transaction support
-bool widget_utils::beginTransaction() {
-    if (m_inTransaction) return false;
-    m_inTransaction = true;
-    m_transactionData = json::object();
-    return true;
-}
-
-bool widget_utils::commitTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    notifyUpdate(m_transactionData);
-    return true;
-}
-
-bool widget_utils::rollbackTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    m_transactionData = json::object();
-    return true;
-}
-
-// Logging helpers
-void widget_utils::logDebug(const std::string& msg) const {
-    LOGI("widget_utils: %s", msg.c_str());
-}
-
-void widget_utils::logWarning(const std::string& msg) const {
-    LOGW("widget_utils: %s", msg.c_str());
-}
-
-void widget_utils::logError(const std::string& msg) const {
-    LOGE("widget_utils: %s", msg.c_str());
-}

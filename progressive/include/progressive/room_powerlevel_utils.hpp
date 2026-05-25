@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parsePowerLevels(const std::string& json);
-std::string buildPowerLevelEvent(const std::string& json);
-std::string getUserPowerLevel(const std::string& json);
-std::string setUserPowerLevel(const std::string& json);
-std::string defaultPowerLevels(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_powerlevel_utils_validate(const std::string& input);
+std::string room_powerlevel_utils_process(const std::string& input);
+json room_powerlevel_utils_toJson(const std::string& input);
+
+} // namespace progressive

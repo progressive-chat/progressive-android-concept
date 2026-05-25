@@ -1,479 +1,129 @@
 #include "progressive/read_receipts.hpp"
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
 #include <sstream>
-#include <chrono>
-#include <mutex>
-#include <nlohmann/json.hpp>
-#include <android/log.h>
-
-#define LOG_TAG "ReceiptEntry"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-using json = nlohmann::json;
+#include <algorithm>
+#include <unordered_map>
 
 namespace progressive {
 
-namespace {
-// String utilities
-static std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
+void sortByTimestampDesc(std::vector<ReceiptEntry>& receipts) {
+    std::sort(receipts.begin(), receipts.end(), [](const ReceiptEntry& a, const ReceiptEntry& b) {
+        return a.timestamp > b.timestamp;
+    });
 }
 
-static std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) result.push_back(item);
+std::vector<ReceiptEntry> deduplicateReceipts(
+    const std::vector<ReceiptEntry>& receipts
+) {
+    std::unordered_map<std::string, ReceiptEntry> bestByUser;
+    for (const auto& r : receipts) {
+        auto it = bestByUser.find(r.userId);
+        if (it == bestByUser.end() || r.timestamp > it->second.timestamp) {
+            bestByUser[r.userId] = r;
+        }
+    }
+    std::vector<ReceiptEntry> result;
+    for (const auto& [_, entry] : bestByUser) {
+        result.push_back(entry);
+    }
+    sortByTimestampDesc(result);
     return result;
 }
 
-static std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return r;
-}
+ReceiptDisplay computeReceiptDisplay(
+    const std::vector<ReceiptEntry>& allReceipts,
+    int maxVisible
+) {
+    ReceiptDisplay display;
+    display.maxVisible = maxVisible;
 
-static bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
-}
+    if (allReceipts.empty()) return display;
 
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
+    // Deduplicate and sort
+    auto deduped = deduplicateReceipts(allReceipts);
+    display.totalCount = static_cast<int>(deduped.size());
 
-static std::string replaceAll(std::string s, const std::string& from,
-                                const std::string& to) {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
+    // Take visible entries
+    int visibleCount = std::min(static_cast<int>(deduped.size()), maxVisible);
+    for (int i = 0; i < visibleCount; ++i) {
+        display.visibleEntries.push_back(deduped[i]);
     }
-    return s;
+
+    // Compute overflow
+    display.overflowCount = display.totalCount - visibleCount;
+
+    // Format accessibility text
+    display.accessibilityText = formatReceiptAccessibility(
+        display.visibleEntries, display.overflowCount
+    );
+
+    return display;
 }
 
-static bool isValidMatrixId(const std::string& id) {
-    return !id.empty() && id.size() <= 255 && id.find(' ') == std::string::npos;
+std::string formatOverflowLabel(int count) {
+    if (count <= 0) return "";
+    return "+" + std::to_string(count);
 }
 
-static uint64_t currentTimeMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-}
+std::string formatReceiptAccessibility(
+    const std::vector<ReceiptEntry>& visibleEntries,
+    int overflowCount
+) {
+    std::ostringstream out;
 
-static std::string generateTxnId() {
-    static std::atomic<uint64_t> counter0;
-    return "txn_" + std::to_string(currentTimeMs()) + "_" +
-           std::to_string(counter.fetch_add(1));
-}
+    int visCount = static_cast<int>(visibleEntries.size());
+    if (visCount == 0) return "";
 
-} // anonymous namespace
-
-// ==== ReceiptEntry Implementation ====
-// Translated from Kotlin: read_receipts.kt
-
-ReceiptEntry::ReceiptEntry() {
-    LOGI("ReceiptEntry constructor");
-}
-
-ReceiptEntry::ReceiptEntry(const json& config) {
-    LOGI("ReceiptEntry constructor with config");
-    configure(config);
-}
-
-ReceiptEntry::~ReceiptEntry() {
-    onDestroy();
-    LOGI("ReceiptEntry destructor");
-}
-
-bool ReceiptEntry::initialize() {
-    LOGI("ReceiptEntry::initialize");
-    if (m_initialized) return true;
-    m_initialized = true;
-    return true;
-}
-
-void ReceiptEntry::configure(const json& config) {
-    if (config.empty()) return;
-    m_config = config;
-    LOGI("ReceiptEntry::configure - config loaded");
-}
-
-void ReceiptEntry::reset() {
-    LOGW("ReceiptEntry::reset");
-    m_lastError.clear();
-}
-
-void ReceiptEntry::setEnabled(bool enabled) {
-    if (m_enabled != enabled) {
-        m_enabled = enabled;
-        LOGI("ReceiptEntry: enabled = %d", enabled);
+    // Format names: "Alice, Bob, and Charlie read"
+    for (int i = 0; i < visCount; ++i) {
+        if (i > 0) {
+            if (i == visCount - 1 && overflowCount == 0) {
+                out << (visCount == 2 ? " and " : ", and ");
+            } else {
+                out << ", ";
+            }
+        }
+        auto name = visibleEntries[i].displayName;
+        if (name.empty()) name = visibleEntries[i].userId;
+        out << name;
     }
+
+    if (overflowCount > 0) {
+        out << " and " << overflowCount << (overflowCount == 1 ? " other" : " others");
+    }
+
+    out << " read";
+    return out.str();
 }
 
-bool ReceiptEntry::isEnabled() const {
-    return m_enabled;
-}
+std::string receiptDisplayToJson(const ReceiptDisplay& display) {
+    auto esc = [](const std::string& s) -> std::string {
+        std::string out;
+        for (char c : s) {
+            if (c == '"') out += "\\\"";
+            else out += c;
+        }
+        return out;
+    };
 
-std::string ReceiptEntry::getStatus() const {
-    json status;
-    status["class"] = "ReceiptEntry";
-    status["initialized"] = m_initialized;
-    status["enabled"] = m_enabled;
-    return status.dump();
-}
-
-json ReceiptEntry::toJson() const {
-    json j;
-    j["type"] = "ReceiptEntry";
-    j["enabled"] = m_enabled;
-    j["initialized"] = m_initialized;
-    return j;
-}
-
-bool ReceiptEntry::fromJson(const json& j) {
-    if (j.empty()) return false;
-    m_enabled = j.value("enabled", true);
-    return true;
-}
-
-std::string ReceiptEntry::lastError() const {
-    return m_lastError;
-}
-
-void ReceiptEntry::setError(const std::string& error) {
-    m_lastError = error;
-    LOGE("ReceiptEntry: %s", error.c_str());
-    if (m_errorCallback) m_errorCallback(error);
-}
-
-void ReceiptEntry::onUpdate(std::function<void(const json&)> cb) {
-    m_updateCallback = std::move(cb);
-}
-
-void ReceiptEntry::onError(std::function<void(const std::string&)> cb) {
-    m_errorCallback = std::move(cb);
-}
-
-void ReceiptEntry::notifyUpdate(const json& data) {
-    if (m_updateCallback) m_updateCallback(data);
-}
-
-void ReceiptEntry::onPause() {
-    LOGI("ReceiptEntry::onPause");
-    m_paused = true;
-}
-
-void ReceiptEntry::onResume() {
-    LOGI("ReceiptEntry::onResume");
-    m_paused = false;
-}
-
-void ReceiptEntry::onDestroy() {
-    LOGI("ReceiptEntry::onDestroy");
-    m_updateCallback = nullptr;
-    m_errorCallback = nullptr;
-}
-
-// ==== Cache management ====
-
-void ReceiptEntry::clearCache() {
-    LOGI("Clearing cache");
-    m_cache.clear();
-}
-
-void ReceiptEntry::flushCache() {
-    LOGI("Flushing cache");
-}
-
-size_t ReceiptEntry::cacheSize() const {
-    return m_cache.size();
-}
-
-// ==== Diagnostics ====
-
-std::string ReceiptEntry::diagnostics() const {
-    json diag;
-    diag["class"] = "ReceiptEntry";
-    diag["initialized"] = m_initialized;
-    diag["enabled"] = m_enabled;
-    diag["paused"] = m_paused;
-    diag["timestamp"] = currentTimeMs();
-    return diag.dump(2);
-}
-
-void ReceiptEntry::dumpState() const {
-    LOGI("State dump: %s", diagnostics().c_str());
-}
-
-void ReceiptEntry::lock() {
-    m_mutex.lock();
-}
-
-void ReceiptEntry::unlock() {
-    m_mutex.unlock();
-}
-
-bool ReceiptEntry::tryLock() {
-    return m_mutex.try_lock();
-}
-
-// ==== Batch operations ====
-
-void ReceiptEntry::beginBatch() {
-    m_batchMode = true;
-}
-
-void ReceiptEntry::endBatch() {
-    m_batchMode = false;
-    notifyUpdate(json::object());
-}
-
-bool ReceiptEntry::isBatchMode() const {
-    return m_batchMode;
+    std::ostringstream json;
+    json << "{";
+    json << R"("visibleEntries": [)";
+    for (size_t i = 0; i < display.visibleEntries.size(); ++i) {
+        if (i > 0) json << ",";
+        const auto& e = display.visibleEntries[i];
+        json << R"({"userId": ")" << esc(e.userId) << R"(")";
+        json << R"(,"displayName": ")" << esc(e.displayName) << R"(")";
+        json << R"(,"avatarUrl": ")" << esc(e.avatarUrl) << R"(")";
+        json << R"(,"timestamp": )" << e.timestamp << "}";
+    }
+    json << "],";
+    json << R"("overflowCount": )" << display.overflowCount << ",";
+    json << R"("overflowLabel": ")" << formatOverflowLabel(display.overflowCount) << R"(",)";
+    json << R"("totalCount": )" << display.totalCount << ",";
+    json << R"("accessibilityText": ")" << esc(display.accessibilityText) << R"(",)";
+    json << R"("maxVisible": )" << display.maxVisible;
+    json << "}";
+    return json.str();
 }
 
 } // namespace progressive
-
-
-
-// ==== Extended read_receipts implementation ====
-// Additional methods and utilities generated for completeness
-
-// Serialization helpers
-std::string read_receipts::serialize() const {
-    json j = toJson();
-    return j.dump();
-}
-
-bool read_receipts::deserialize(const std::string& data) {
-    if (data.empty()) return false;
-    try {
-        json j = json::parse(data);
-        return fromJson(j);
-    } catch (...) {
-        setError("Failed to deserialize data");
-        return false;
-    }
-}
-
-// Validation helpers
-bool read_receipts::validate() const {
-    if (!m_initialized) {
-        LOGE("read_receipts: not initialized");
-        return false;
-    }
-    return true;
-}
-
-// Storage helpers
-bool read_receipts::save(const std::string& path) const {
-    std::string data = serialize();
-    if (data.empty()) return false;
-    std::ofstream f(path);
-    if (!f) return false;
-    f << data;
-    return true;
-}
-
-bool read_receipts::load(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) return false;
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return deserialize(ss.str());
-}
-
-// Metrics and statistics
-json read_receipts::getMetrics() const {
-    json m;
-    m["class"] = "read_receipts";
-    m["initialized"] = m_initialized;
-    m["enabled"] = m_enabled;
-    m["paused"] = m_paused;
-    m["timestamp"] = currentTimeMs();
-    return m;
-}
-
-int read_receipts::getOperationCount() const {
-    return m_operationCount;
-}
-
-void read_receipts::resetOperationCount() {
-    m_operationCount = 0;
-}
-
-// Event emission
-void read_receipts::emitEvent(const std::string& eventType, const json& data) {
-    json event;
-    event["type"] = eventType;
-    event["source"] = "read_receipts";
-    event["data"] = data;
-    event["timestamp"] = currentTimeMs();
-    notifyUpdate(event);
-}
-
-// Policy checking
-bool read_receipts::checkPolicy(const std::string& policy, const json& context) {
-    (void)policy;
-    (void)context;
-    return true;
-}
-
-// Access control
-bool read_receipts::canAccess(const std::string& userId, const std::string& resource) {
-    (void)userId;
-    (void)resource;
-    return true;
-}
-
-// Rate limiting
-bool read_receipts::checkRateLimit(const std::string& key, int maxRequests, int windowMs) {
-    auto now = currentTimeMs();
-    auto& window = m_rateLimitWindows[key];
-    if (now - window.startTime > windowMs) {
-        window.startTime = now;
-        window.count = 0;
-    }
-    if (window.count >= maxRequests) return false;
-    window.count++;
-    return true;
-}
-
-// Observation pattern
-void read_receipts::addObserver(const std::string& observerId) {
-    m_observers.insert(observerId);
-}
-
-void read_receipts::removeObserver(const std::string& observerId) {
-    m_observers.erase(observerId);
-}
-
-int read_receipts::observerCount() const {
-    return static_cast<int>(m_observers.size());
-}
-
-void read_receipts::notifyObservers(const json& data) {
-    notifyUpdate(data);
-}
-
-// Factory pattern
-std::shared_ptr<void> read_receipts::createInstance() {
-    return nullptr;
-}
-
-// Iterator pattern
-std::vector<std::string> read_receipts::listItems() const {
-    return {};
-}
-
-int read_receipts::itemCount() const {
-    return 0;
-}
-
-// Versioning
-std::string read_receipts::getVersion() const {
-    return "1.0.0";
-}
-
-bool read_receipts::checkVersion(const std::string& requiredVersion) {
-    return getVersion() >= requiredVersion;
-}
-
-// Feature flags
-bool read_receipts::isFeatureEnabled(const std::string& feature) const {
-    auto it = m_features.find(feature);
-    return it != m_features.end() && it->second;
-}
-
-void read_receipts::setFeature(const std::string& feature, bool enabled) {
-    m_features[feature] = enabled;
-}
-
-std::vector<std::string> read_receipts::getEnabledFeatures() const {
-    std::vector<std::string> result;
-    for (auto& [feature, enabled] : m_features) {
-        if (enabled) result.push_back(feature);
-    }
-    return result;
-}
-
-// Data migration
-bool read_receipts::migrateData(int fromVersion, int toVersion) {
-    LOGI("read_receipts: migrating data from v%d to v%d", fromVersion, toVersion);
-    return true;
-}
-
-int read_receipts::getDataVersion() const {
-    return m_dataVersion;
-}
-
-// Import/Export
-json read_receipts::exportData() const {
-    return toJson();
-}
-
-bool read_receipts::importData(const json& data) {
-    return fromJson(data);
-}
-
-// Cleanup
-void read_receipts::performCleanup() {
-    LOGI("read_receipts: performing cleanup");
-    m_cache.clear();
-    m_observers.clear();
-    m_features.clear();
-    m_rateLimitWindows.clear();
-}
-
-// Memory management
-size_t read_receipts::memoryUsage() const {
-    size_t usage = sizeof(*this);
-    usage += m_cache.size() * sizeof(std::string) * 100;
-    usage += m_observers.size() * sizeof(std::string) * 50;
-    usage += m_features.size() * (sizeof(std::string) + sizeof(bool));
-    return usage;
-}
-
-// Transaction support
-bool read_receipts::beginTransaction() {
-    if (m_inTransaction) return false;
-    m_inTransaction = true;
-    m_transactionData = json::object();
-    return true;
-}
-
-bool read_receipts::commitTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    notifyUpdate(m_transactionData);
-    return true;
-}
-
-bool read_receipts::rollbackTransaction() {
-    if (!m_inTransaction) return false;
-    m_inTransaction = false;
-    m_transactionData = json::object();
-    return true;
-}
-
-// Logging helpers
-void read_receipts::logDebug(const std::string& msg) const {
-    LOGI("read_receipts: %s", msg.c_str());
-}
-
-void read_receipts::logWarning(const std::string& msg) const {
-    LOGW("read_receipts: %s", msg.c_str());
-}
-
-void read_receipts::logError(const std::string& msg) const {
-    LOGE("read_receipts: %s", msg.c_str());
-}

@@ -21,7 +21,7 @@ void PushRuleEvaluator::loadRules(const json& pushRulesJson) {
                     pc.kind = cond.value("kind", "");
                     pc.key = cond.value("key", "");
                     pc.pattern = cond.value("pattern", "");
-                    pc.is = cond.value("is", "");
+                    pc.is = cond.value("is", false);
                     pr.conditions.push_back(pc);
                 }
             }

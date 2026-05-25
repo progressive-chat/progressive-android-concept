@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string groupByRoom(const std::string& json);
-std::string isGrouped(const std::string& json);
-std::string getGroupSummary(const std::string& json);
-std::string shouldGroupMore(const std::string& json);
-std::string formatGroupNotification(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool notification_group_validate(const std::string& input);
+std::string notification_group_process(const std::string& input);
+json notification_group_toJson(const std::string& input);
+
+} // namespace progressive

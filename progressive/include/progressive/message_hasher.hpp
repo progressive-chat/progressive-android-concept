@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string hashMessageContent(const std::string& json);
-std::string verifyMessageHash(const std::string& json);
-std::string getHashAlgorithm(const std::string& json);
-std::string signHashedMessage(const std::string& json);
-std::string extractHashFromEvent(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool message_hasher_validate(const std::string& input);
+std::string message_hasher_process(const std::string& input);
+json message_hasher_toJson(const std::string& input);
+
+} // namespace progressive

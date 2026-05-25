@@ -85,6 +85,7 @@ bool isValidOrderString(const std::string& order);
 // "My Room Name" → "my_room_name"
 std::string candidateAliasFromRoomName(const std::string& roomName, const std::string& domain, int maxAliasLength = 100);
 
+inline std::string extractServerName(const std::string& id) { return extractServerNameFromId(id); }
 } // namespace progressive
 
 #endif // PROGRESSIVE_MATRIX_PATTERNS_HPP

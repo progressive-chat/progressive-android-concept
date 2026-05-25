@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string muteRoom(const std::string& json);
-std::string unmuteRoom(const std::string& json);
-std::string isMuted(const std::string& json);
-std::string getMuteUntil(const std::string& json);
-std::string formatMuteStatus(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_mute_validate(const std::string& input);
+std::string room_mute_process(const std::string& input);
+json room_mute_toJson(const std::string& input);
+
+} // namespace progressive

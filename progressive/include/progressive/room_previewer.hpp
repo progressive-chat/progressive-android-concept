@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseRoomPreview(const std::string& json);
-std::string getRoomHeroes(const std::string& json);
-std::string getRoomTopic(const std::string& json);
-std::string formatPreviewCard(const std::string& json);
-std::string canPreviewRoom(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool room_previewer_validate(const std::string& input);
+std::string room_previewer_process(const std::string& input);
+json room_previewer_toJson(const std::string& input);
+
+} // namespace progressive

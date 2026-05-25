@@ -1,16 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseStateKey(const std::string& json);
-std::string bool isStateEvent(const std::string& json);
-std::string buildStateEvent(const std(const std::string& json);
-std::string string& type, const std(const std::string& json);
-std::string string& stateKey,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& content);(const std::string& json);
-std::string formatStateEvent(const std(const std::string& json);
-std::string string& type, const std(const std::string& json);
-std::string string& stateKey,(const std::string& json);
-std::string const std(const std::string& json);
-std::string string& senderName);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool event_state_utils_validate(const std::string& input);
+std::string event_state_utils_process(const std::string& input);
+json event_state_utils_toJson(const std::string& input);
+
+} // namespace progressive

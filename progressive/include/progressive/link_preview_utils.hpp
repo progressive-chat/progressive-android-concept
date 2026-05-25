@@ -1,23 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string url;(const std::string& json);
-std::string title;(const std::string& json);
-std::string description;(const std::string& json);
-std::string imageUrl;(const std::string& json);
-std::string siteName;(const std::string& json);
-std::string url;(const std::string& json);
-std::string std(const std::string& json);
-std::string vector<ExtractedLink> extractUrls(const std(const std::string& json);
-std::string string& text);(const std::string& json);
-std::string LinkPreviewData parseOpenGraph(const std(const std::string& json);
-std::string string& html);(const std::string& json);
-std::string LinkPreviewData parseOEmbed(const std::string& json);
-std::string formatLinkPreview(const LinkPreviewData& data);(const std::string& json);
-std::string buildUrlPreviewContent(const std(const std::string& json);
-std::string string& url, const LinkPreviewData& data);(const std::string& json);
-std::string bool isImageUrl(const std(const std::string& json);
-std::string string& url);(const std::string& json);
-std::string getDomainFromUrl(const std(const std::string& json);
-std::string string& url);(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool link_preview_utils_validate(const std::string& input);
+std::string link_preview_utils_process(const std::string& input);
+json link_preview_utils_toJson(const std::string& input);
+
+} // namespace progressive

@@ -62,19 +62,6 @@ bool exifRequiresFlip(ExifOrientation orient) {
 
 // ====== MXC URL Utilities ======
 
-std::string resolveMxcDownloadUrl(const std::string& mxcUrl, const std::string& homeServer) {
-    auto server = extractMxcServerName(mxcUrl);
-    auto mediaId = extractMxcMediaId(mxcUrl);
-    if (server.empty() || mediaId.empty()) return "";
-
-    std::string base = homeServer;
-    if (base.empty()) base = "https://" + server;
-
-    // Remove trailing slash
-    while (!base.empty() && base.back() == '/') base.pop_back();
-
-    return base + "/_matrix/media/r0/download/" + server + "/" + mediaId;
-}
 
 std::string resolveMxcThumbnailUrl(const std::string& mxcUrl, const std::string& homeServer,
                                     const ThumbnailConfig& config) {
@@ -94,19 +81,7 @@ std::string resolveMxcThumbnailUrl(const std::string& mxcUrl, const std::string&
     return url.str();
 }
 
-std::string extractMxcServerName(const std::string& mxcUrl) {
-    if (mxcUrl.compare(0, 6, "mxc://") != 0) return "";
-    auto end = mxcUrl.find('/', 6);
-    if (end == std::string::npos) return mxcUrl.substr(6);
-    return mxcUrl.substr(6, end - 6);
-}
 
-std::string extractMxcMediaId(const std::string& mxcUrl) {
-    if (mxcUrl.compare(0, 6, "mxc://") != 0) return "";
-    auto end = mxcUrl.find('/', 6);
-    if (end == std::string::npos) return "";
-    return mxcUrl.substr(end + 1);
-}
 
 std::string buildMxcUrl(const std::string& serverName, const std::string& mediaId) {
     return "mxc://" + serverName + "/" + mediaId;
@@ -124,85 +99,6 @@ MediaType detectMediaType(const std::string& mimeType) {
     return MediaType::FILE;
 }
 
-bool isMimeTypeImage(const std::string& mimeType) { return mimeType.compare(0, 6, "image/") == 0; }
-bool isMimeTypeVideo(const std::string& mimeType) { return mimeType.compare(0, 6, "video/") == 0; }
-bool isMimeTypeAudio(const std::string& mimeType) { return mimeType.compare(0, 6, "audio/") == 0; }
-
-// ====== Media Info Parsing ======
-
-MediaInfo parseMediaInfo(const std::string& contentJson) {
-    MediaInfo info;
-    info.mxcUrl = extractStr(contentJson, "url");
-    info.mimeType = extractStr(contentJson, "mimetype");
-    if (info.mimeType.empty()) info.mimeType = extractStr(contentJson, "mime_type");
-    info.fileName = extractStr(contentJson, "filename");
-    if (info.fileName.empty()) info.fileName = extractStr(contentJson, "body");
-
-    info.body = extractStr(contentJson, "body");
-
-    // Parse info object
-    auto infoBlock = contentJson;
-    auto infoPos = infoBlock.find("\"info\"");
-    if (infoPos != std::string::npos) {
-        infoPos = infoBlock.find('{', infoPos);
-        if (infoPos != std::string::npos) {
-            int depth = 0;
-            size_t start = infoPos;
-            infoPos++;
-            while (infoPos < infoBlock.size() && depth >= 0) {
-                if (infoBlock[infoPos] == '{') depth++;
-                else if (infoBlock[infoPos] == '}') depth--;
-                if (depth == -1) break;
-                infoPos++;
-            }
-            auto infoJson = infoBlock.substr(start, infoPos - start);
-            info.width = static_cast<int>(extractInt(infoJson, "w"));
-            if (info.width == 0) info.width = static_cast<int>(extractInt(infoJson, "width"));
-            info.height = static_cast<int>(extractInt(infoJson, "h"));
-            if (info.height == 0) info.height = static_cast<int>(extractInt(infoJson, "height"));
-            info.sizeBytes = extractInt(infoJson, "size");
-            info.durationMs = static_cast<int>(extractInt(infoJson, "duration"));
-            info.hasThumbnail = infoJson.find("\"thumbnail_url\"") != std::string::npos ||
-                                infoJson.find("\"thumbnail_info\"") != std::string::npos;
-
-            auto thumbUrl = extractStr(infoJson, "thumbnail_url");
-            if (!thumbUrl.empty()) info.thumbnailUrl = thumbUrl;
-        }
-    }
-
-    // Thumbnail from top-level
-    if (info.thumbnailUrl.empty()) {
-        info.thumbnailUrl = extractStr(contentJson, "thumbnail_url");
-    }
-
-    // EXIF orientation
-    int exifRaw = 1;
-    auto exifPos = contentJson.find("\"org.matrix.msc2705.orientation\"");
-    if (exifPos != std::string::npos) {
-        exifRaw = static_cast<int>(extractInt(contentJson, "org.matrix.msc2705.orientation"));
-    }
-    if (exifRaw == 0 || exifRaw == 1) {
-        exifRaw = static_cast<int>(extractInt(contentJson, "orientation"));
-    }
-    info.exifOrientation = exifFromRaw(std::max(1, exifRaw));
-
-    // Type detection
-    info.type = detectMediaType(info.mimeType);
-
-    return info;
-}
-
-std::string getMediaTypeName(MediaType type) {
-    switch (type) {
-        case MediaType::IMAGE: return "Image";
-        case MediaType::VIDEO: return "Video";
-        case MediaType::AUDIO: return "Audio";
-        case MediaType::FILE: return "File";
-        case MediaType::STICKER: return "Sticker";
-        case MediaType::GIF: return "GIF";
-        default: return "Unknown";
-    }
-}
 
 std::string getMediaTypeNameFromMime(const std::string& mimeType) {
     return getMediaTypeName(detectMediaType(mimeType));

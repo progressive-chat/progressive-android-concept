@@ -1,23 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <nlohmann/json.hpp>
 
 namespace progressive {
 
-struct UserDirectoryItem {
-    std::string userId;
-    std::string displayName;
-    std::string avatarUrl;
-    bool isContact = false;     // in address book
-};
+using json = nlohmann::json;
 
-// Build user search request
-std::string buildUserSearchBody(const std::string& query, int limit = 20);
-
-// Parse user search response
-std::vector<UserDirectoryItem> parseUserSearchResults(const std::string& json);
-
-// Format user for directory list
-std::string formatUserDirectoryItem(const UserDirectoryItem& item);
+bool user_directory_formatter_validate(const std::string& input);
+std::string user_directory_formatter_process(const std::string& input);
+json user_directory_formatter_toJson(const std::string& input);
 
 } // namespace progressive

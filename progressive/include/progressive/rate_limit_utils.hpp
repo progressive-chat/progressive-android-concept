@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
-std::string parseRateLimitInfo(const std::string& json);
-std::string calculateBackoff(const std::string& json);
-std::string isRateLimited(const std::string& json);
-std::string resetRateLimit(const std::string& json);
-std::string formatRateLimitWarning(const std::string& json);
+namespace progressive {
+
+using json = nlohmann::json;
+
+bool rate_limit_utils_validate(const std::string& input);
+std::string rate_limit_utils_process(const std::string& input);
+json rate_limit_utils_toJson(const std::string& input);
+
+} // namespace progressive
