@@ -1,3 +1,4 @@
+# Build outputs
 build/
 cmake-build-*/
 *.o
@@ -9,21 +10,40 @@ cmake-build-*/
 *.dll
 *.a
 *.lib
+*.apk
+*.aab
+
+# IDE
 .DS_Store
 *.user
 *.pro.user*
+.vscode/
+.idea/
+*.kdev4
+*.iml
+
+# CMake
 Makefile
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 install_manifest.txt
+_deps/
+
+# Qt artifacts (from original desktop code, no longer used)
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+local.properties
+*.hprof
+
+# Temporary
 *.autosave
 *.swp
 *.swo
 *~
-.vscode/
-.idea/
-*.kdev4
-moc_*.cpp
-ui_*.h
-qrc_*.cpp
+*.bak

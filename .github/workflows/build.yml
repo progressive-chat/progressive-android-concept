@@ -1,0 +1,109 @@
+name: Build APK
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+env:
+  NDK_VERSION: "26.3.11579264"
+  CMAKE_VERSION: "3.22.1"
+
+jobs:
+  build:
+    name: Build APK (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64-v8a, armeabi-v7a, x86_64, x86]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            ndk;${{ env.NDK_VERSION }}
+            cmake;${{ env.CMAKE_VERSION }}
+
+      - name: Cache FetchContent deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/.cxx
+            app/build
+            build/_deps
+            .gradle
+          key: build-${{ matrix.arch }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cpp', '**/*.hpp', '**/*.gradle') }}
+          restore-keys: |
+            build-${{ matrix.arch }}-
+
+      - name: Write local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/$NDK_VERSION" >> local.properties
+
+      - name: Build APK
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+        run: |
+          gradle assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            -Pandroid.injected.invoked.from.ide=false
+
+      - name: Collect APKs
+        run: |
+          mkdir -p apks
+          find app/build -name "*.apk" -exec cp {} apks/ \;
+          ls -lh apks/ 2>/dev/null || echo "No APKs found"
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: progressive-chat-${{ matrix.arch }}
+          path: apks/*.apk
+          retention-days: 30
+
+  merge-apks:
+    name: Universal APK
+    needs: build
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Download all APKs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: progressive-chat-*
+          path: apks
+
+      - name: Collect
+        run: |
+          mkdir -p universal
+          find apks -name "*.apk" -exec cp {} universal/ \;
+          ls -lh universal/
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: progressive-chat-universal
+          path: universal/*.apk
+          retention-days: 30
