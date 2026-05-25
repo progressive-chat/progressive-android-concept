@@ -1,16 +1,9 @@
 #include "progressive/matrix_api.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
-
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    std::mutex g_mutex;
-    bool g_initialized = false;
-} // anonymous namespace
-
-} // namespace progressive
+bool matrix_api_validate(const std::string& i) { return !i.empty(); }
+std::string matrix_api_process(const std::string& i) { return i; }
+json matrix_api_toJson(const std::string& i) { return json::object(); }
+}

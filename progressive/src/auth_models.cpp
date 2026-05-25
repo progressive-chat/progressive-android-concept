@@ -1,18 +1,10 @@
 #include "progressive/auth_models.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
 
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    AuthModelsConfig g_config;
-    std::mutex g_mutex;
-    AuthModelsStatus g_status;
-    bool g_initialized = false;
-} // anonymous namespace
-
+bool auth_models_validate(const std::string& input) { return !input.empty(); }
+std::string auth_models_process(const std::string& input) { return input; }
+json auth_models_toJson(const std::string& input) { return json::object(); }
 } // namespace progressive

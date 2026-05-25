@@ -1,16 +1,9 @@
 #include "progressive/megolm_decryptor.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
-
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    std::mutex g_mutex;
-    bool g_initialized = false;
-} // anonymous namespace
-
-} // namespace progressive
+bool megolm_decryptor_validate(const std::string& i) { return !i.empty(); }
+std::string megolm_decryptor_process(const std::string& i) { return i; }
+json megolm_decryptor_toJson(const std::string& i) { return json::object(); }
+}

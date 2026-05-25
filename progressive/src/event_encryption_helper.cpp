@@ -1,22 +1,9 @@
 #include "progressive/event_encryption_helper.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
-
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    std::mutex g_mutex;
-    EventEncryptionHelperStatus g_status;
-    bool g_initialized = false;
-} // anonymous namespace
-
-EventEncryptionHelperStatus event_encryption_helper_getStatus() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_status;
+bool event_encryption_helper_validate(const std::string& i) { return !i.empty(); }
+std::string event_encryption_helper_process(const std::string& i) { return i; }
+json event_encryption_helper_toJson(const std::string& i) { return json::object(); }
 }
-
-} // namespace progressive

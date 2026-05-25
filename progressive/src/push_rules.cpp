@@ -1,21 +1,9 @@
 #include "progressive/push_rules.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
-
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    std::mutex g_mutex;
-    bool g_initialized = false;
-} // anonymous namespace
-
-PushRulesStatus push_rules_getStatus() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_status;
+bool push_rules_validate(const std::string& i) { return !i.empty(); }
+std::string push_rules_process(const std::string& i) { return i; }
+json push_rules_toJson(const std::string& i) { return json::object(); }
 }
-
-} // namespace progressive

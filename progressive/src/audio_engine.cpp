@@ -1,16 +1,9 @@
 #include "progressive/audio_engine.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
-#include <mutex>
-
 namespace progressive {
 using json = nlohmann::json;
-
-namespace {
-    std::mutex g_mutex;
-    bool g_initialized = false;
-} // anonymous namespace
-
-} // namespace progressive
+bool audio_engine_validate(const std::string& i) { return !i.empty(); }
+std::string audio_engine_process(const std::string& i) { return i; }
+json audio_engine_toJson(const std::string& i) { return json::object(); }
+}
