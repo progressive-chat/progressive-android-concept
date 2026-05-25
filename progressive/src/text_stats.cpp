@@ -1,9 +1,22 @@
 #include "progressive/text_stats.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <algorithm>
+#include <mutex>
+
 namespace progressive {
 using json = nlohmann::json;
-bool text_stats_validate(const std::string& i) { return !i.empty(); }
-std::string text_stats_process(const std::string& i) { return i; }
-json text_stats_toJson(const std::string& i) { return json::object(); }
+
+namespace {
+    std::mutex g_mutex;
+    TextStatsStats g_stats;
+    bool g_initialized = false;
+} // anonymous namespace
+
+TextStatsStats text_stats_getStats() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_stats;
 }
+
+} // namespace progressive

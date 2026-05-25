@@ -1,9 +1,17 @@
 #include "progressive/key_backup_manager.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <algorithm>
+#include <mutex>
+
 namespace progressive {
 using json = nlohmann::json;
-bool key_backup_manager_validate(const std::string& i) { return !i.empty(); }
-std::string key_backup_manager_process(const std::string& i) { return i; }
-json key_backup_manager_toJson(const std::string& i) { return json::object(); }
-}
+
+namespace {
+    KeyBackupManagerConfig g_config;
+    std::mutex g_mutex;
+    bool g_initialized = false;
+} // anonymous namespace
+
+} // namespace progressive

@@ -1,9 +1,16 @@
 #include "progressive/event_models.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <algorithm>
+#include <mutex>
+
 namespace progressive {
 using json = nlohmann::json;
-bool event_models_validate(const std::string& i) { return !i.empty(); }
-std::string event_models_process(const std::string& i) { return i; }
-json event_models_toJson(const std::string& i) { return json::object(); }
-}
+
+namespace {
+    std::mutex g_mutex;
+    bool g_initialized = false;
+} // anonymous namespace
+
+} // namespace progressive

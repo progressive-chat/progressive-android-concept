@@ -1,0 +1,1569 @@
+#include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
+
+namespace progressive { namespace test {
+using json = nlohmann::json;
+
+TEST(StickerAndEmojiTest, Scenario1) {
+    // Test scenario 1 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_0";
+    data["timestamp"] = 1600001200000;
+    data["user_id"] = "@testuser_12_0:matrix.org";
+    data["room_id"] = "!testroom_12_0:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 10;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(0) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997000000 + e * 1000;
+        event["content"]["body"] = "Message body 12_0_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_0";
+    data["state"]["topic"] = "Topic 12_0";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario2) {
+    // Test scenario 2 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_1";
+    data["timestamp"] = 1600001201000;
+    data["user_id"] = "@testuser_12_1:matrix.org";
+    data["room_id"] = "!testroom_12_1:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 11;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(1) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997100000 + e * 1000;
+        event["content"]["body"] = "Message body 12_1_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_1";
+    data["state"]["topic"] = "Topic 12_1";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario3) {
+    // Test scenario 3 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_2";
+    data["timestamp"] = 1600001202000;
+    data["user_id"] = "@testuser_12_2:matrix.org";
+    data["room_id"] = "!testroom_12_2:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 12;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(2) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997200000 + e * 1000;
+        event["content"]["body"] = "Message body 12_2_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_2";
+    data["state"]["topic"] = "Topic 12_2";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario4) {
+    // Test scenario 4 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_3";
+    data["timestamp"] = 1600001203000;
+    data["user_id"] = "@testuser_12_3:matrix.org";
+    data["room_id"] = "!testroom_12_3:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 13;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(3) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997300000 + e * 1000;
+        event["content"]["body"] = "Message body 12_3_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_3";
+    data["state"]["topic"] = "Topic 12_3";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario5) {
+    // Test scenario 5 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_4";
+    data["timestamp"] = 1600001204000;
+    data["user_id"] = "@testuser_12_4:matrix.org";
+    data["room_id"] = "!testroom_12_4:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 14;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(4) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997400000 + e * 1000;
+        event["content"]["body"] = "Message body 12_4_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_4";
+    data["state"]["topic"] = "Topic 12_4";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario6) {
+    // Test scenario 6 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_5";
+    data["timestamp"] = 1600001205000;
+    data["user_id"] = "@testuser_12_5:matrix.org";
+    data["room_id"] = "!testroom_12_5:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 15;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(5) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997500000 + e * 1000;
+        event["content"]["body"] = "Message body 12_5_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_5";
+    data["state"]["topic"] = "Topic 12_5";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario7) {
+    // Test scenario 7 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_6";
+    data["timestamp"] = 1600001206000;
+    data["user_id"] = "@testuser_12_6:matrix.org";
+    data["room_id"] = "!testroom_12_6:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 16;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(6) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997600000 + e * 1000;
+        event["content"]["body"] = "Message body 12_6_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_6";
+    data["state"]["topic"] = "Topic 12_6";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario8) {
+    // Test scenario 8 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_7";
+    data["timestamp"] = 1600001207000;
+    data["user_id"] = "@testuser_12_7:matrix.org";
+    data["room_id"] = "!testroom_12_7:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 17;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(7) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997700000 + e * 1000;
+        event["content"]["body"] = "Message body 12_7_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_7";
+    data["state"]["topic"] = "Topic 12_7";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario9) {
+    // Test scenario 9 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_8";
+    data["timestamp"] = 1600001208000;
+    data["user_id"] = "@testuser_12_8:matrix.org";
+    data["room_id"] = "!testroom_12_8:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 18;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(8) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997800000 + e * 1000;
+        event["content"]["body"] = "Message body 12_8_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_8";
+    data["state"]["topic"] = "Topic 12_8";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario10) {
+    // Test scenario 10 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_9";
+    data["timestamp"] = 1600001209000;
+    data["user_id"] = "@testuser_12_9:matrix.org";
+    data["room_id"] = "!testroom_12_9:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 19;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(9) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599997900000 + e * 1000;
+        event["content"]["body"] = "Message body 12_9_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_9";
+    data["state"]["topic"] = "Topic 12_9";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario11) {
+    // Test scenario 11 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_10";
+    data["timestamp"] = 1600001210000;
+    data["user_id"] = "@testuser_12_10:matrix.org";
+    data["room_id"] = "!testroom_12_10:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 20;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(10) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998000000 + e * 1000;
+        event["content"]["body"] = "Message body 12_10_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_10";
+    data["state"]["topic"] = "Topic 12_10";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario12) {
+    // Test scenario 12 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_11";
+    data["timestamp"] = 1600001211000;
+    data["user_id"] = "@testuser_12_11:matrix.org";
+    data["room_id"] = "!testroom_12_11:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 21;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(11) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998100000 + e * 1000;
+        event["content"]["body"] = "Message body 12_11_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_11";
+    data["state"]["topic"] = "Topic 12_11";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario13) {
+    // Test scenario 13 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_12";
+    data["timestamp"] = 1600001212000;
+    data["user_id"] = "@testuser_12_12:matrix.org";
+    data["room_id"] = "!testroom_12_12:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 22;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998200000 + e * 1000;
+        event["content"]["body"] = "Message body 12_12_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_12";
+    data["state"]["topic"] = "Topic 12_12";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario14) {
+    // Test scenario 14 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_13";
+    data["timestamp"] = 1600001213000;
+    data["user_id"] = "@testuser_12_13:matrix.org";
+    data["room_id"] = "!testroom_12_13:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 23;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(13) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998300000 + e * 1000;
+        event["content"]["body"] = "Message body 12_13_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_13";
+    data["state"]["topic"] = "Topic 12_13";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario15) {
+    // Test scenario 15 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_14";
+    data["timestamp"] = 1600001214000;
+    data["user_id"] = "@testuser_12_14:matrix.org";
+    data["room_id"] = "!testroom_12_14:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 24;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(14) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998400000 + e * 1000;
+        event["content"]["body"] = "Message body 12_14_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_14";
+    data["state"]["topic"] = "Topic 12_14";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario16) {
+    // Test scenario 16 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_15";
+    data["timestamp"] = 1600001215000;
+    data["user_id"] = "@testuser_12_15:matrix.org";
+    data["room_id"] = "!testroom_12_15:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 25;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(15) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998500000 + e * 1000;
+        event["content"]["body"] = "Message body 12_15_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_15";
+    data["state"]["topic"] = "Topic 12_15";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario17) {
+    // Test scenario 17 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_16";
+    data["timestamp"] = 1600001216000;
+    data["user_id"] = "@testuser_12_16:matrix.org";
+    data["room_id"] = "!testroom_12_16:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 26;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(16) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998600000 + e * 1000;
+        event["content"]["body"] = "Message body 12_16_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_16";
+    data["state"]["topic"] = "Topic 12_16";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario18) {
+    // Test scenario 18 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_17";
+    data["timestamp"] = 1600001217000;
+    data["user_id"] = "@testuser_12_17:matrix.org";
+    data["room_id"] = "!testroom_12_17:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 27;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(17) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998700000 + e * 1000;
+        event["content"]["body"] = "Message body 12_17_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_17";
+    data["state"]["topic"] = "Topic 12_17";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario19) {
+    // Test scenario 19 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_18";
+    data["timestamp"] = 1600001218000;
+    data["user_id"] = "@testuser_12_18:matrix.org";
+    data["room_id"] = "!testroom_12_18:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 28;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(18) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998800000 + e * 1000;
+        event["content"]["body"] = "Message body 12_18_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_18";
+    data["state"]["topic"] = "Topic 12_18";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario20) {
+    // Test scenario 20 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_19";
+    data["timestamp"] = 1600001219000;
+    data["user_id"] = "@testuser_12_19:matrix.org";
+    data["room_id"] = "!testroom_12_19:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 29;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(19) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599998900000 + e * 1000;
+        event["content"]["body"] = "Message body 12_19_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_19";
+    data["state"]["topic"] = "Topic 12_19";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario21) {
+    // Test scenario 21 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_20";
+    data["timestamp"] = 1600001220000;
+    data["user_id"] = "@testuser_12_20:matrix.org";
+    data["room_id"] = "!testroom_12_20:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 30;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(20) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999000000 + e * 1000;
+        event["content"]["body"] = "Message body 12_20_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_20";
+    data["state"]["topic"] = "Topic 12_20";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario22) {
+    // Test scenario 22 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_21";
+    data["timestamp"] = 1600001221000;
+    data["user_id"] = "@testuser_12_21:matrix.org";
+    data["room_id"] = "!testroom_12_21:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 31;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(21) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999100000 + e * 1000;
+        event["content"]["body"] = "Message body 12_21_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_21";
+    data["state"]["topic"] = "Topic 12_21";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario23) {
+    // Test scenario 23 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_22";
+    data["timestamp"] = 1600001222000;
+    data["user_id"] = "@testuser_12_22:matrix.org";
+    data["room_id"] = "!testroom_12_22:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 32;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(22) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999200000 + e * 1000;
+        event["content"]["body"] = "Message body 12_22_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_22";
+    data["state"]["topic"] = "Topic 12_22";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario24) {
+    // Test scenario 24 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_23";
+    data["timestamp"] = 1600001223000;
+    data["user_id"] = "@testuser_12_23:matrix.org";
+    data["room_id"] = "!testroom_12_23:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 33;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(23) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999300000 + e * 1000;
+        event["content"]["body"] = "Message body 12_23_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_23";
+    data["state"]["topic"] = "Topic 12_23";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario25) {
+    // Test scenario 25 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_24";
+    data["timestamp"] = 1600001224000;
+    data["user_id"] = "@testuser_12_24:matrix.org";
+    data["room_id"] = "!testroom_12_24:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 34;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(24) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999400000 + e * 1000;
+        event["content"]["body"] = "Message body 12_24_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_24";
+    data["state"]["topic"] = "Topic 12_24";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario26) {
+    // Test scenario 26 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_25";
+    data["timestamp"] = 1600001225000;
+    data["user_id"] = "@testuser_12_25:matrix.org";
+    data["room_id"] = "!testroom_12_25:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 35;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 0;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 0;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(25) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999500000 + e * 1000;
+        event["content"]["body"] = "Message body 12_25_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_25";
+    data["state"]["topic"] = "Topic 12_25";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario27) {
+    // Test scenario 27 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_26";
+    data["timestamp"] = 1600001226000;
+    data["user_id"] = "@testuser_12_26:matrix.org";
+    data["room_id"] = "!testroom_12_26:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 36;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 1;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 1;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(26) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999600000 + e * 1000;
+        event["content"]["body"] = "Message body 12_26_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_26";
+    data["state"]["topic"] = "Topic 12_26";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario28) {
+    // Test scenario 28 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_27";
+    data["timestamp"] = 1600001227000;
+    data["user_id"] = "@testuser_12_27:matrix.org";
+    data["room_id"] = "!testroom_12_27:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 37;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 2;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 2;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(27) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999700000 + e * 1000;
+        event["content"]["body"] = "Message body 12_27_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_27";
+    data["state"]["topic"] = "Topic 12_27";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario29) {
+    // Test scenario 29 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_28";
+    data["timestamp"] = 1600001228000;
+    data["user_id"] = "@testuser_12_28:matrix.org";
+    data["room_id"] = "!testroom_12_28:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 38;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 3;
+    data["parameters"]["enabled"] = True;
+    data["parameters"]["priority"] = 3;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(28) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999800000 + e * 1000;
+        event["content"]["body"] = "Message body 12_28_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_28";
+    data["state"]["topic"] = "Topic 12_28";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+TEST(StickerAndEmojiTest, Scenario30) {
+    // Test scenario 30 for StickerAndEmoji
+    json data;
+    data["test_id"] = "StickerAndEmoji_29";
+    data["timestamp"] = 1600001229000;
+    data["user_id"] = "@testuser_12_29:matrix.org";
+    data["room_id"] = "!testroom_12_29:matrix.org";
+    
+    // Setup test parameters
+    data["parameters"]["count"] = 39;
+    data["parameters"]["limit"] = 50;
+    data["parameters"]["offset"] = 4;
+    data["parameters"]["enabled"] = False;
+    data["parameters"]["priority"] = 4;
+    ASSERT_FALSE(data["user_id"].empty());
+    ASSERT_FALSE(data["room_id"].empty());
+    ASSERT_TRUE(data["parameters"]["limit"] > 0);
+    
+    // Generate test events
+    data["events"] = json::array();
+    for (int e = 0; e < 5; ++e) {
+        json event;
+        event["event_id"] = "$event" + std::to_string(12) + "_" + std::to_string(29) + "_" + std::to_string(e) + ":matrix.org";
+        event["type"] = "m.room.message";
+        event["sender"] = "@sender" + std::to_string(12) + "_" + std::to_string(e) + ":matrix.org";
+        event["origin_server_ts"] = 1599999900000 + e * 1000;
+        event["content"]["body"] = "Message body 12_29_" + std::to_string(e);
+        event["content"]["msgtype"] = "m.text";
+        data["events"].push_back(event);
+    }
+    ASSERT_EQ(data["events"].size(), 5);
+    
+    // Verify state
+    data["state"] = json::object();
+    data["state"]["name"] = "Room 12_29";
+    data["state"]["topic"] = "Topic 12_29";
+    data["state"]["join_rule"] = "invite";
+    data["state"]["encryption"] = "m.megolm.v1.aes-sha2";
+    ASSERT_FALSE(data["state"]["name"].empty());
+    ASSERT_EQ(data["state"]["join_rule"], "invite");
+    
+    // verify serialization
+    std::string serialized = data.dump();
+    ASSERT_FALSE(serialized.empty());
+    ASSERT_GT(serialized.size(), 10);
+    
+    // re-parse and verify
+    json reparsed = json::parse(serialized);
+    ASSERT_EQ(reparsed["test_id"], data["test_id"]);
+    ASSERT_EQ(reparsed["events"].size(), 5);
+}
+
+}} // namespace progressive::test

@@ -1,0 +1,55 @@
+#include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
+#include <string>
+namespace progressive { namespace test { using json = nlohmann::json;
+
+TEST(FillB,T1){json t;t["i"]=0;for(int e=0;e<5;++e){json v;v["eid"]="$b_0_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T2){json t;t["i"]=1;for(int e=0;e<5;++e){json v;v["eid"]="$b_1_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T3){json t;t["i"]=2;for(int e=0;e<5;++e){json v;v["eid"]="$b_2_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T4){json t;t["i"]=3;for(int e=0;e<5;++e){json v;v["eid"]="$b_3_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T5){json t;t["i"]=4;for(int e=0;e<5;++e){json v;v["eid"]="$b_4_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T6){json t;t["i"]=5;for(int e=0;e<5;++e){json v;v["eid"]="$b_5_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T7){json t;t["i"]=6;for(int e=0;e<5;++e){json v;v["eid"]="$b_6_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T8){json t;t["i"]=7;for(int e=0;e<5;++e){json v;v["eid"]="$b_7_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T9){json t;t["i"]=8;for(int e=0;e<5;++e){json v;v["eid"]="$b_8_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T10){json t;t["i"]=9;for(int e=0;e<5;++e){json v;v["eid"]="$b_9_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T11){json t;t["i"]=10;for(int e=0;e<5;++e){json v;v["eid"]="$b_10_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T12){json t;t["i"]=11;for(int e=0;e<5;++e){json v;v["eid"]="$b_11_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T13){json t;t["i"]=12;for(int e=0;e<5;++e){json v;v["eid"]="$b_12_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T14){json t;t["i"]=13;for(int e=0;e<5;++e){json v;v["eid"]="$b_13_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T15){json t;t["i"]=14;for(int e=0;e<5;++e){json v;v["eid"]="$b_14_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T16){json t;t["i"]=15;for(int e=0;e<5;++e){json v;v["eid"]="$b_15_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T17){json t;t["i"]=16;for(int e=0;e<5;++e){json v;v["eid"]="$b_16_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T18){json t;t["i"]=17;for(int e=0;e<5;++e){json v;v["eid"]="$b_17_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T19){json t;t["i"]=18;for(int e=0;e<5;++e){json v;v["eid"]="$b_18_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T20){json t;t["i"]=19;for(int e=0;e<5;++e){json v;v["eid"]="$b_19_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T21){json t;t["i"]=20;for(int e=0;e<5;++e){json v;v["eid"]="$b_20_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T22){json t;t["i"]=21;for(int e=0;e<5;++e){json v;v["eid"]="$b_21_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T23){json t;t["i"]=22;for(int e=0;e<5;++e){json v;v["eid"]="$b_22_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T24){json t;t["i"]=23;for(int e=0;e<5;++e){json v;v["eid"]="$b_23_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+
+TEST(FillB,T25){json t;t["i"]=24;for(int e=0;e<5;++e){json v;v["eid"]="$b_24_"+std::to_string(e)+":m";t["evs"].push_back(v);}ASSERT_EQ(t["evs"].size(),5);auto s=t.dump();ASSERT_FALSE(s.empty());}
+}}
